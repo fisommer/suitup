@@ -1,0 +1,9 @@
+name = "suitup-crawler"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+
+[vars]
+# non-secret defaults go here
+
+# secrets are set via:
+#   npx wrangler secret put ANTHROPIC_API_KEY
