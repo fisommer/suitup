@@ -491,6 +491,8 @@ Verify you get JSON with `success: true` and at least name + images.
 
 Save the deployed URL — you'll plug it into the iOS app as `CRAWLER_BASE_URL`.
 
+**Deployed URL (2026-06-26):** `https://suitup-crawler.yb4snpkzyn.workers.dev`
+
 **Commit:** `chore(worker): deploy v0.1`
 
 ### Phase 0 acceptance
