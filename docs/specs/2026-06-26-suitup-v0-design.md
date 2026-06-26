@@ -37,7 +37,7 @@
 **Migration paths (documented, not implemented):**
 - Personal sync across Finn's devices → CloudKit (native, free, easiest)
 - Multi-user (Option Y) → Supabase (Postgres + auth + realtime)
-- Either migration is bounded: small data model (4 entities), <1 day work.
+- Either migration is bounded: small data model (5 entities), <1 day work.
 
 ---
 
@@ -56,7 +56,7 @@ Settings: gear icon in top-right of Closet tab.
 
 ## 4. Data Model
 
-Four entities, plus event logs.
+Five entities, plus event logs.
 
 ### `Item` (closet piece)
 ```
@@ -185,7 +185,7 @@ StylingRequest { id, itemId, contextOccasion?, contextWeather?,
 1. User submits URL (or shares URL from another app)
 2. App POSTs URL to Cloudflare Worker `/crawl`
 3. Worker fetches the page, tries JSON-LD / OpenGraph extraction first
-4. If essential fields missing: Worker screenshots / passes HTML to Claude vision for extraction
+4. If essential fields missing: Worker downloads the top-N candidate product images from the page and sends them + page `<title>`, meta description, and visible text to Claude vision for extraction. (No headless-browser screenshot — Cloudflare Workers can't run a browser. Image-based fallback is sufficient.)
 5. Worker returns: `{ images: [urls], name, brand, price, color, material, sizes, … }`
 6. App downloads selected image, runs bg-removal locally
 7. Show same confirm screen as Flow 1, pre-filled
@@ -240,7 +240,7 @@ No tags. Image-only by design. Vision model reads the image at request time.
 **AI step:**
 1. Build payload:
    - Selected item: image + tags
-   - Closet subset: items in compatible categories (e.g., if selected is a top, send all bottoms, outerwear, footwear, accessories — skip other tops). Max 30 items.
+   - Closet subset: send all items in non-conflicting categories. Conflicting = same primary slot. Concretely: if selected is a `top`, exclude all other items where `category=top`; include everything else. Same for `bottom`. If selected is `outerwear`, include other categories but allow up to 1 alternative outerwear piece for layered looks. Footwear and accessories are never excluded. Cap at 30 items total — if closet is larger, prioritize recency + matching `formality`/`seasons` to the selected piece.
    - Saved outfits containing this item: up to 5
    - Reference looks: up to 10 most recent (configurable)
 2. POST to Anthropic Messages API with the payload + system prompt (see §6)
@@ -450,7 +450,8 @@ Result is consistent, fast, and looks intentional. Replaced by AI-generated coll
 4. If extraction is "good enough" (has name + ≥1 image + category):
    return { success: true, ... }
 5. Else fall back to Claude Sonnet vision:
-   - Take a screenshot via a headless service (or just send the largest few images + page title to Claude)
+   - Fetch the top-N candidate product images (by alt text, og:image, largest declared dimensions)
+   - Send those images + page title + meta description + visible text body to Claude
    - Ask Claude to extract product details
 6. Return merged data
 ```
