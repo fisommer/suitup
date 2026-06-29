@@ -22,48 +22,49 @@ struct ItemConfirmView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    Image(uiImage: draft.useBackgroundRemoved ? draft.bgRemovedImage : draft.originalImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(maxHeight: 280)
-                        .frame(maxWidth: .infinity)
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                    if draft.bgRemovalSucceeded {
-                        Toggle("Background removed", isOn: $draft.useBackgroundRemoved)
-                    } else {
-                        Label("Background couldn't be removed automatically", systemImage: "info.circle")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    if KeychainStore.hasKey {
-                        Button {
-                            Task { await improveWithAI() }
-                        } label: {
-                            HStack {
-                                if isImproving {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                } else {
-                                    Image(systemName: "sparkles")
-                                }
-                                Text(isImproving ? "Improving…" : "Improve with AI")
-                                Spacer()
-                            }
+            ZStack(alignment: .bottom) {
+                Form {
+                    Section {
+                        Image(uiImage: draft.useBackgroundRemoved ? draft.bgRemovedImage : draft.originalImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(maxHeight: 280)
+                            .frame(maxWidth: .infinity)
+                            .background(Color(.secondarySystemBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        if draft.bgRemovalSucceeded {
+                            Toggle("Background removed", isOn: $draft.useBackgroundRemoved)
+                        } else {
+                            Label("Background couldn't be removed automatically", systemImage: "info.circle")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
-                        .disabled(isImproving)
+                        if KeychainStore.hasKey {
+                            Button {
+                                Task { await improveWithAI() }
+                            } label: {
+                                HStack {
+                                    if isImproving {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                    } else {
+                                        Image(systemName: "sparkles")
+                                    }
+                                    Text(isImproving ? "Improving…" : "Improve with AI")
+                                    Spacer()
+                                }
+                            }
+                            .disabled(isImproving)
+                        }
                     }
-                }
 
-                Section {
-                    additionalPhotosRow
-                } header: {
-                    Text("Additional photos")
-                } footer: {
-                    Text("Back, prints, detail shots. Up to 2 more — only the primary image is used by AI styling.")
-                }
+                    Section {
+                        additionalPhotosRow
+                    } header: {
+                        Text("Additional photos")
+                    } footer: {
+                        Text("Back, prints, detail shots. Up to 2 more — only the primary image is used by AI styling.")
+                    }
 
                 Section("Details") {
                     TextField("Name", text: $draft.name)
@@ -120,12 +121,19 @@ struct ItemConfirmView: View {
                 }
 
                 Section {
-                    Button("Save to closet") { save() }
-                        .frame(maxWidth: .infinity)
                     Button("Discard", role: .destructive) { dismiss() }
                         .frame(maxWidth: .infinity)
                 }
+
+                // Spacer at the bottom so the last form content isn't covered by the floating Save bar.
+                Section {
+                    Color.clear.frame(height: 60)
+                }
+                .listRowBackground(Color.clear)
             }
+
+            floatingSaveBar
+        }
             .navigationTitle("Confirm")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -198,6 +206,26 @@ struct ItemConfirmView: View {
             }
             .padding(.vertical, 4)
         }
+    }
+
+    private var floatingSaveBar: some View {
+        VStack(spacing: 0) {
+            Divider()
+            Button {
+                save()
+            } label: {
+                Text("Save to closet")
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+            .padding(.bottom, 8)
+        }
+        .background(.regularMaterial)
     }
 
     /// Run AutoTagger over the current image and merge results into the draft,
