@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import PhotosUI
 
 struct ItemConfirmView: View {
     @State var draft: ItemConfirmDraft
@@ -10,6 +11,7 @@ struct ItemConfirmView: View {
     @State private var occasionTagsText: String = ""
     @State private var isImproving: Bool = false
     @State private var improveError: String?
+    @State private var additionalPickerItem: PhotosPickerItem?
 
     init(draft: ItemConfirmDraft, onSaved: ((UUID) -> Void)? = nil) {
         _draft = State(initialValue: draft)
@@ -53,6 +55,14 @@ struct ItemConfirmView: View {
                         }
                         .disabled(isImproving)
                     }
+                }
+
+                Section {
+                    additionalPhotosRow
+                } header: {
+                    Text("Additional photos")
+                } footer: {
+                    Text("Back, prints, detail shots. Up to 2 more — only the primary image is used by AI styling.")
                 }
 
                 Section("Details") {
@@ -132,6 +142,61 @@ struct ItemConfirmView: View {
                 actions: { Button("OK", role: .cancel) {} },
                 message: { Text(improveError ?? "") }
             )
+            .onChange(of: additionalPickerItem) { _, new in
+                guard let new else { return }
+                Task {
+                    if let data = try? await new.loadTransferable(type: Data.self),
+                       let img = UIImage(data: data) {
+                        await MainActor.run {
+                            if draft.additionalImages.count < 2 {
+                                draft.additionalImages.append(img)
+                            }
+                            additionalPickerItem = nil
+                        }
+                    } else {
+                        await MainActor.run { additionalPickerItem = nil }
+                    }
+                }
+            }
+        }
+    }
+
+    private var additionalPhotosRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(Array(draft.additionalImages.enumerated()), id: \.offset) { idx, img in
+                    ZStack(alignment: .topTrailing) {
+                        Image(uiImage: img)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 88, height: 110)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        Button {
+                            draft.additionalImages.remove(at: idx)
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title3)
+                                .foregroundStyle(.white, .black.opacity(0.5))
+                        }
+                        .offset(x: 6, y: -6)
+                    }
+                }
+                if draft.additionalImages.count < 2 {
+                    PhotosPicker(selection: $additionalPickerItem, matching: .images, photoLibrary: .shared()) {
+                        VStack(spacing: 4) {
+                            Image(systemName: "plus")
+                                .font(.title2)
+                            Text("Add")
+                                .font(.caption2)
+                        }
+                        .frame(width: 88, height: 110)
+                        .foregroundStyle(.tint)
+                        .background(Color(.tertiarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                }
+            }
+            .padding(.vertical, 4)
         }
     }
 

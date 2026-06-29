@@ -11,7 +11,7 @@ struct ItemDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                StoredImage(relativePath: item.imagePath, contentMode: .fit)
+                imageGallery
                     .frame(maxWidth: .infinity)
                     .frame(height: 360)
                     .background(Color(.secondarySystemBackground))
@@ -85,6 +85,22 @@ struct ItemDetailView: View {
         }
         .sheet(isPresented: $showingStyling) {
             StylingView(selected: item)
+        }
+    }
+
+    @ViewBuilder
+    private var imageGallery: some View {
+        let paths = [item.imagePath] + item.additionalImagePaths
+        if paths.count <= 1 {
+            StoredImage(relativePath: item.imagePath, contentMode: .fit)
+        } else {
+            TabView {
+                ForEach(Array(paths.enumerated()), id: \.offset) { _, path in
+                    StoredImage(relativePath: path, contentMode: .fit)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .always))
+            .indexViewStyle(.page(backgroundDisplayMode: .always))
         }
     }
 }

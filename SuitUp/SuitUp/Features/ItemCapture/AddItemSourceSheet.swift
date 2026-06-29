@@ -4,12 +4,13 @@ import UIKit
 
 struct AddItemSourceSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var libraryPickerItem: PhotosPickerItem?
+    @State private var libraryPickerItems: [PhotosPickerItem] = []
     @State private var showCamera = false
     @State private var showPasteURL = false
     @State private var isAnalyzing = false
+    @State private var analyzingProgress: (current: Int, total: Int)?
     @State private var errorMessage: String?
-    @State private var draftToConfirm: IdentifiedDraft?
+    @State private var draftQueue: [QueuedDraft] = []
 
     var body: some View {
         NavigationStack {
@@ -20,14 +21,22 @@ struct AddItemSourceSheet: View {
                     } label: {
                         Label("Take photo", systemImage: "camera")
                     }
-                    PhotosPicker(selection: $libraryPickerItem, matching: .images, photoLibrary: .shared()) {
-                        Label("Pick from library", systemImage: "photo")
+                    PhotosPicker(
+                        selection: $libraryPickerItems,
+                        maxSelectionCount: 10,
+                        selectionBehavior: .ordered,
+                        matching: .images,
+                        photoLibrary: .shared()
+                    ) {
+                        Label("Pick from library", systemImage: "photo.on.rectangle")
                     }
                     Button {
                         showPasteURL = true
                     } label: {
                         Label("Paste link", systemImage: "link")
                     }
+                } footer: {
+                    Text("Pick one or many photos. Each will be auto-tagged and you'll confirm them one by one.")
                 }
                 if !KeychainStore.hasKey {
                     Section {
@@ -46,31 +55,31 @@ struct AddItemSourceSheet: View {
             }
             .fullScreenCover(isPresented: $showCamera) {
                 CameraPicker { image in
-                    Task { await process(image: image) }
+                    Task { await processBatch(images: [image]) }
                 }
                 .ignoresSafeArea()
             }
             .sheet(isPresented: $showPasteURL, onDismiss: {
-                // If the URL flow saved an item, AppEvents.shared.lastSavedItemId is set,
-                // so we should dismiss the source sheet too.
                 if AppEvents.shared.lastSavedItemId != nil {
                     dismiss()
                 }
             }) {
                 PasteURLView()
             }
-            .onChange(of: libraryPickerItem) { _, newItem in
-                guard let newItem else { return }
+            .onChange(of: libraryPickerItems) { _, newItems in
+                guard !newItems.isEmpty else { return }
                 Task {
-                    if let data = try? await newItem.loadTransferable(type: Data.self),
-                       let img = UIImage(data: data) {
-                        await process(image: img)
+                    let images = await loadImages(from: newItems)
+                    await MainActor.run { libraryPickerItems = [] }
+                    if !images.isEmpty {
+                        await processBatch(images: images)
                     }
-                    await MainActor.run { libraryPickerItem = nil }
                 }
             }
             .overlay {
-                if isAnalyzing { AnalyzingOverlay() }
+                if isAnalyzing {
+                    AnalyzingOverlay(progress: analyzingProgress)
+                }
             }
             .alert(
                 "Tagging failed",
@@ -81,17 +90,96 @@ struct AddItemSourceSheet: View {
                 actions: { Button("OK", role: .cancel) {} },
                 message: { Text(errorMessage ?? "") }
             )
-            .sheet(item: $draftToConfirm) { holder in
+            .sheet(item: Binding<QueuedDraft?>(
+                get: { draftQueue.first },
+                set: { _ in
+                    if !draftQueue.isEmpty { draftQueue.removeFirst() }
+                }
+            )) { holder in
                 ItemConfirmView(draft: holder.draft) { _ in
-                    dismiss()
+                    // After save (or discard), the queue auto-advances via the binding above.
+                    // If this was the last item, close the source sheet too.
+                    if draftQueue.count <= 1 {
+                        dismiss()
+                    }
                 }
             }
         }
     }
 
+    /// Load `UIImage`s from picker items. Preserves selection order.
+    private func loadImages(from items: [PhotosPickerItem]) async -> [UIImage] {
+        var loaded: [UIImage] = []
+        for item in items {
+            if let data = try? await item.loadTransferable(type: Data.self),
+               let img = UIImage(data: data) {
+                loaded.append(img)
+            }
+        }
+        return loaded
+    }
+
+    /// Process N images in parallel (capped at 5 concurrent),
+    /// then enqueue all resulting drafts for confirmation.
     @MainActor
-    private func process(image: UIImage) async {
+    private func processBatch(images: [UIImage]) async {
+        guard !images.isEmpty else { return }
         isAnalyzing = true
+        analyzingProgress = (current: 0, total: images.count)
+
+        var completed = 0
+        let drafts: [ItemConfirmDraft] = await withTaskGroup(of: (Int, ItemConfirmDraft?).self) { group in
+            // Cap concurrency at 5
+            let concurrency = min(5, images.count)
+            var iterator = images.enumerated().makeIterator()
+            var inflight = 0
+
+            // Seed
+            for _ in 0..<concurrency {
+                guard let (idx, image) = iterator.next() else { break }
+                inflight += 1
+                group.addTask {
+                    let draft = await Self.processOne(image: image)
+                    return (idx, draft)
+                }
+            }
+
+            var results: [(Int, ItemConfirmDraft?)] = []
+            while inflight > 0 {
+                if let pair = await group.next() {
+                    results.append(pair)
+                    inflight -= 1
+                    completed += 1
+                    let snapshot = completed
+                    await MainActor.run { analyzingProgress = (current: snapshot, total: images.count) }
+                    if let (idx, image) = iterator.next() {
+                        inflight += 1
+                        group.addTask {
+                            let draft = await Self.processOne(image: image)
+                            return (idx, draft)
+                        }
+                    }
+                }
+            }
+            return results.sorted(by: { $0.0 < $1.0 }).compactMap { $0.1 }
+        }
+
+        isAnalyzing = false
+        analyzingProgress = nil
+
+        // If everything failed, surface a single error.
+        if drafts.isEmpty {
+            errorMessage = "Couldn't process any of the selected photos."
+            return
+        }
+
+        draftQueue = drafts.map { QueuedDraft(draft: $0) }
+    }
+
+    /// Run bg-removal + auto-tag for a single image. Returns nil only if catastrophic
+    /// (e.g. image data corrupt). API failures still return a draft with empty tags
+    /// so the user can fill them manually.
+    private static func processOne(image: UIImage) async -> ItemConfirmDraft? {
         let outcome = await BackgroundRemoval.attemptRemoval(from: image)
         let bgRemoved: UIImage
         let bgSucceeded: Bool
@@ -103,13 +191,13 @@ struct AddItemSourceSheet: View {
             bgRemoved = img
             bgSucceeded = false
         }
+
         var draft = ItemConfirmDraft(
             originalImage: image,
             bgRemovedImage: bgRemoved,
             useBackgroundRemoved: bgSucceeded
         )
         draft.bgRemovalSucceeded = bgSucceeded
-        var fatalError: String? = nil
 
         if KeychainStore.hasKey {
             do {
@@ -129,37 +217,35 @@ struct AddItemSourceSheet: View {
                 draft.occasionTags = result.occasionTags
                 draft.materialIsGuess = true
             } catch {
-                print("[AutoTagger] Failed: \(error)")
-                fatalError = error.localizedDescription
+                print("[AutoTagger] Failed for one item: \(error)")
+                // Keep draft, let user fill manually
             }
-        } else {
-            print("[AutoTagger] No API key — skipping auto-tag, opening manual confirm")
         }
-
-        isAnalyzing = false
-
-        if let fatalError {
-            errorMessage = fatalError
-            return
-        }
-        draftToConfirm = IdentifiedDraft(draft: draft)
+        return draft
     }
 }
 
-private struct IdentifiedDraft: Identifiable {
+struct QueuedDraft: Identifiable {
     let id = UUID()
     let draft: ItemConfirmDraft
 }
 
 private struct AnalyzingOverlay: View {
+    let progress: (current: Int, total: Int)?
+
     var body: some View {
         ZStack {
             Color.black.opacity(0.35).ignoresSafeArea()
             VStack(spacing: 12) {
                 ProgressView()
                     .tint(.white)
-                Text("Analyzing…")
-                    .foregroundStyle(.white)
+                if let progress, progress.total > 1 {
+                    Text("Analyzing… \(progress.current) of \(progress.total)")
+                        .foregroundStyle(.white)
+                } else {
+                    Text("Analyzing…")
+                        .foregroundStyle(.white)
+                }
             }
             .padding(24)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
