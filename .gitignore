@@ -3,3 +3,10 @@
 node_modules/
 .wrangler/
 .dev.vars
+
+# Xcode
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+.swiftpm/
