@@ -8,6 +8,8 @@ struct ItemConfirmView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var colorsText: String = ""
     @State private var occasionTagsText: String = ""
+    @State private var isImproving: Bool = false
+    @State private var improveError: String?
 
     init(draft: ItemConfirmDraft, onSaved: ((UUID) -> Void)? = nil) {
         _draft = State(initialValue: draft)
@@ -33,6 +35,23 @@ struct ItemConfirmView: View {
                         Label("Background couldn't be removed automatically", systemImage: "info.circle")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                    }
+                    if KeychainStore.hasKey {
+                        Button {
+                            Task { await improveWithAI() }
+                        } label: {
+                            HStack {
+                                if isImproving {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                } else {
+                                    Image(systemName: "sparkles")
+                                }
+                                Text(isImproving ? "Improving…" : "Improve with AI")
+                                Spacer()
+                            }
+                        }
+                        .disabled(isImproving)
                     }
                 }
 
@@ -104,6 +123,57 @@ struct ItemConfirmView: View {
                     Button("Cancel") { dismiss() }
                 }
             }
+            .alert(
+                "Couldn't improve tags",
+                isPresented: Binding(
+                    get: { improveError != nil },
+                    set: { if !$0 { improveError = nil } }
+                ),
+                actions: { Button("OK", role: .cancel) {} },
+                message: { Text(improveError ?? "") }
+            )
+        }
+    }
+
+    /// Run AutoTagger over the current image and merge results into the draft,
+    /// preserving any field the user already filled.
+    @MainActor
+    private func improveWithAI() async {
+        isImproving = true
+        defer { isImproving = false }
+        let baseImage = draft.useBackgroundRemoved ? draft.bgRemovedImage : draft.originalImage
+        do {
+            let result = try await AutoTagger().tag(image: baseImage)
+            // Only fill empty fields — never overwrite user edits.
+            if draft.name.isEmpty { draft.name = result.name }
+            // Category: only override if user hasn't manually adjusted past the default.
+            // Heuristic: if subcategory is empty, treat category as auto-assignable.
+            if draft.subcategory.isEmpty {
+                draft.category = result.category
+                draft.subcategory = result.subcategory
+            }
+            if colorsText.isEmpty && !result.colors.isEmpty {
+                colorsText = result.colors.joined(separator: ", ")
+                draft.colors = result.colors
+            }
+            // Formality: only override if seasons not yet picked (proxy for "still default").
+            if draft.seasons.isEmpty {
+                draft.formality = result.formality
+                draft.seasons = Set(result.seasons)
+            }
+            if draft.pattern.isEmpty, let p = result.pattern { draft.pattern = p }
+            if draft.material.isEmpty, let m = result.material {
+                draft.material = m
+                draft.materialIsGuess = true
+            }
+            if draft.fit == nil { draft.fit = result.fit }
+            if occasionTagsText.isEmpty && !result.occasionTags.isEmpty {
+                occasionTagsText = result.occasionTags.joined(separator: ", ")
+                draft.occasionTags = result.occasionTags
+            }
+        } catch {
+            print("[ImproveWithAI] Failed: \(error)")
+            improveError = error.localizedDescription
         }
     }
 
