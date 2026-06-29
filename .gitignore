@@ -10,3 +10,6 @@ xcuserdata/
 DerivedData/
 build/
 .swiftpm/
+
+# Local closet/app data backups — never commit personal clothing photos
+backups/

@@ -23,6 +23,7 @@ struct PieceMatch: Codable, Hashable {
 @Model
 final class RecreateAttempt {
     @Attribute(.unique) var id: UUID
+    var name: String?
     var sourceImagePath: String
     var sourceUrl: String?
     var parsedPiecesJSON: Data
@@ -30,17 +31,21 @@ final class RecreateAttempt {
     var recreatableCount: Int
     var totalPieceCount: Int
     var linkedReferenceLookId: UUID?
+    var savedOutfitId: UUID?
     var createdAt: Date
 
     init(
         id: UUID = UUID(),
+        name: String? = nil,
         sourceImagePath: String,
         sourceUrl: String? = nil,
         parsedPieces: [ParsedPiece],
         matches: [PieceMatch],
-        linkedReferenceLookId: UUID? = nil
+        linkedReferenceLookId: UUID? = nil,
+        savedOutfitId: UUID? = nil
     ) throws {
         self.id = id
+        self.name = name
         self.sourceImagePath = sourceImagePath
         self.sourceUrl = sourceUrl
         self.parsedPiecesJSON = try JSONEncoder().encode(parsedPieces)
@@ -48,6 +53,7 @@ final class RecreateAttempt {
         self.totalPieceCount = parsedPieces.count
         self.recreatableCount = matches.filter { $0.status == .matched }.count
         self.linkedReferenceLookId = linkedReferenceLookId
+        self.savedOutfitId = savedOutfitId
         self.createdAt = Date()
     }
 

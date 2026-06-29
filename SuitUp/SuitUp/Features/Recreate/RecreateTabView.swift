@@ -56,6 +56,7 @@ struct NewRecreateSheet: View {
     @Query private var references: [ReferenceLook]
     @State private var libItem: PhotosPickerItem?
     @State private var sourceImage: UIImage?
+    @State private var name: String = ""
     @State private var phase: Phase = .input
     @State private var errorMessage: String?
 
@@ -67,6 +68,14 @@ struct NewRecreateSheet: View {
                 switch phase {
                 case .input:
                     Form {
+                        Section {
+                            TextField("Name (e.g. \"linen Riviera fit\")", text: $name)
+                                .autocorrectionDisabled()
+                        } header: {
+                            Text("Outfit name")
+                        } footer: {
+                            Text("Used later if you save the matched items as an outfit. Optional — you can rename it after.")
+                        }
                         Section("Pick an outfit image") {
                             PhotosPicker(selection: $libItem, matching: .images, photoLibrary: .shared()) {
                                 Label("Pick from library", systemImage: "photo")
@@ -86,7 +95,15 @@ struct NewRecreateSheet: View {
                         }
                     }
                 case .analyzing:
-                    VStack { ProgressView("Analyzing…").padding() }
+                    VStack(spacing: 12) {
+                        ProgressView()
+                        Text("Analyzing the look against your closet…")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .navigationTitle("Recreate look")
@@ -112,8 +129,10 @@ struct NewRecreateSheet: View {
             let result = try await RecreateService().analyze(image: sourceImage, closet: closet, references: references)
             let id = UUID()
             let sourcePath = try ImageStore.save(sourceImage, folder: .recreate, name: "\(id)", maxDimension: 1024)
+            let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
             let attempt = try RecreateAttempt(
                 id: id,
+                name: trimmed.isEmpty ? nil : trimmed,
                 sourceImagePath: sourcePath,
                 parsedPieces: result.parsedPieces,
                 matches: result.matches
@@ -132,28 +151,67 @@ struct RecreateResultView: View {
     @Bindable var attempt: RecreateAttempt
     @Query private var allItems: [Item]
     @Environment(\.modelContext) private var modelContext
+    @State private var savedReferenceFlash: Bool = false
 
     private var itemsById: [UUID: Item] {
         Dictionary(uniqueKeysWithValues: allItems.map { ($0.id, $0) })
     }
 
+    private var outfitSaved: Bool { attempt.savedOutfitId != nil }
+    private var referenceSaved: Bool { attempt.linkedReferenceLookId != nil }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 StoredImage(relativePath: attempt.sourceImagePath).frame(maxHeight: 400)
-                Text("\(attempt.recreatableCount) of \(attempt.totalPieceCount) pieces recreatable")
-                    .font(.headline)
-                    .padding(.horizontal)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    if let name = attempt.name, !name.isEmpty {
+                        Text(name)
+                            .font(.title3.bold())
+                    }
+                    Text("\(attempt.recreatableCount) of \(attempt.totalPieceCount) pieces recreatable")
+                        .font(.headline)
+                }
+                .padding(.horizontal)
+
                 ForEach(Array(attempt.matches.enumerated()), id: \.offset) { _, match in
                     matchRow(match, piece: attempt.parsedPieces[safe: match.pieceIndex])
                         .padding(.horizontal)
                 }
-                Button("Save matched items as outfit") { saveMatchedOutfit() }
+
+                VStack(spacing: 10) {
+                    Button {
+                        saveMatchedOutfit()
+                    } label: {
+                        HStack(spacing: 6) {
+                            if outfitSaved {
+                                Image(systemName: "checkmark.circle.fill")
+                            }
+                            Text(outfitSaved ? "Saved to Outfits" : "Save matched items as outfit")
+                                .fontWeight(.semibold)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                    }
                     .buttonStyle(.borderedProminent)
-                    .padding()
-                    .disabled(attempt.recreatableCount == 0)
-                Button("Save source image as reference") { saveAsReference() }
-                    .padding(.horizontal)
+                    .controlSize(.large)
+                    .disabled(attempt.recreatableCount == 0 || outfitSaved)
+
+                    Button {
+                        saveAsReference()
+                    } label: {
+                        HStack(spacing: 6) {
+                            if referenceSaved {
+                                Image(systemName: "checkmark.circle.fill")
+                            }
+                            Text(referenceSaved ? "Saved as reference" : "Save source image as reference")
+                        }
+                    }
+                    .disabled(referenceSaved)
+                }
+                .padding(.horizontal)
+                .padding(.top, 8)
             }
         }
         .navigationTitle("Recreate")
@@ -181,6 +239,10 @@ struct RecreateResultView: View {
                         Spacer()
                         if match.wantedPieceId == nil {
                             Button("Save as want") { saveAsWant(match: match, piece: piece) }.font(.caption)
+                        } else {
+                            Label("Saved", systemImage: "checkmark.circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -214,18 +276,26 @@ struct RecreateResultView: View {
         guard !items.isEmpty else { return }
         let collage = CollageRenderer.render(items: items)
         let id = UUID()
+        let outfitName: String = {
+            if let n = attempt.name?.trimmingCharacters(in: .whitespacesAndNewlines), !n.isEmpty {
+                return n
+            }
+            return "Recreated look"
+        }()
         do {
             let path = try ImageStore.save(collage, folder: .outfits, name: "\(id)", maxDimension: 1024)
             let outfit = Outfit(
                 id: id,
-                name: "Recreated look",
+                name: outfitName,
                 itemIds: matchedIds,
                 coverImagePath: path,
                 source: .manuallyBuilt,
                 rationale: "From recreate attempt"
             )
             modelContext.insert(outfit)
+            attempt.savedOutfitId = id
             try? modelContext.save()
+            AppEvents.shared.didSaveItem(id: id, name: outfitName)
         } catch { print(error) }
     }
 
