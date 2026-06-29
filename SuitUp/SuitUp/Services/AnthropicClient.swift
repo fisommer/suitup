@@ -24,7 +24,7 @@ struct AnthropicClient {
         case image(UIImage)
     }
 
-    let model: String = "claude-sonnet-latest"
+    let model: String = "claude-sonnet-4-6"
     let maxTokens: Int = 2048
 
     /// Force the model to call a single tool. Returns the tool's `input` dict.

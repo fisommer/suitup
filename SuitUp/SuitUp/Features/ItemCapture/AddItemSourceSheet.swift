@@ -1,37 +1,28 @@
 import SwiftUI
 import PhotosUI
 import UIKit
-import Combine
-
-@MainActor
-final class AddItemFlowState: ObservableObject {
-    @Published var libraryPickerItem: PhotosPickerItem?
-    @Published var showCamera = false
-    @Published var isAnalyzing = false
-    @Published var errorMessage: String?
-    @Published var pendingDraft: ItemConfirmDraft?
-    @Published var showPasteURL = false   // wired up in Phase 4
-}
 
 struct AddItemSourceSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var state = AddItemFlowState()
+    @State private var libraryPickerItem: PhotosPickerItem?
+    @State private var showCamera = false
+    @State private var isAnalyzing = false
+    @State private var errorMessage: String?
+    @State private var draftToConfirm: IdentifiedDraft?
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
                     Button {
-                        state.showCamera = true
+                        showCamera = true
                     } label: {
                         Label("Take photo", systemImage: "camera")
                     }
-                    PhotosPicker(selection: $state.libraryPickerItem, matching: .images, photoLibrary: .shared()) {
+                    PhotosPicker(selection: $libraryPickerItem, matching: .images, photoLibrary: .shared()) {
                         Label("Pick from library", systemImage: "photo")
                     }
-                    Button {
-                        state.showPasteURL = true
-                    } label: {
+                    Button {} label: {
                         Label("Paste link", systemImage: "link")
                     }
                     .disabled(true) // Phase 4
@@ -51,37 +42,36 @@ struct AddItemSourceSheet: View {
                     Button("Cancel") { dismiss() }
                 }
             }
-            .fullScreenCover(isPresented: $state.showCamera) {
+            .fullScreenCover(isPresented: $showCamera) {
                 CameraPicker { image in
                     Task { await process(image: image) }
                 }
                 .ignoresSafeArea()
             }
-            .onChange(of: state.libraryPickerItem) { _, newItem in
+            .onChange(of: libraryPickerItem) { _, newItem in
                 guard let newItem else { return }
                 Task {
                     if let data = try? await newItem.loadTransferable(type: Data.self),
                        let img = UIImage(data: data) {
                         await process(image: img)
                     }
+                    // Reset picker so the same selection doesn't refire.
+                    await MainActor.run { libraryPickerItem = nil }
                 }
             }
             .overlay {
-                if state.isAnalyzing { AnalyzingOverlay() }
+                if isAnalyzing { AnalyzingOverlay() }
             }
             .alert(
                 "Tagging failed",
                 isPresented: Binding(
-                    get: { state.errorMessage != nil },
-                    set: { if !$0 { state.errorMessage = nil } }
+                    get: { errorMessage != nil },
+                    set: { if !$0 { errorMessage = nil } }
                 ),
                 actions: { Button("OK", role: .cancel) {} },
-                message: { Text(state.errorMessage ?? "") }
+                message: { Text(errorMessage ?? "") }
             )
-            .sheet(item: Binding<DraftHolder?>(
-                get: { state.pendingDraft.map { DraftHolder(draft: $0) } },
-                set: { state.pendingDraft = $0?.draft }
-            )) { holder in
+            .sheet(item: $draftToConfirm) { holder in
                 ItemConfirmView(draft: holder.draft)
             }
         }
@@ -89,17 +79,17 @@ struct AddItemSourceSheet: View {
 
     @MainActor
     private func process(image: UIImage) async {
-        state.isAnalyzing = true
-        defer { state.isAnalyzing = false }
-
+        isAnalyzing = true
         let bgRemoved = await BackgroundRemoval.removeBackground(from: image)
         var draft = ItemConfirmDraft(originalImage: image, bgRemovedImage: bgRemoved)
+        var fatalError: String? = nil
 
         if KeychainStore.hasKey {
             do {
                 let result = try await AutoTagger().tag(image: bgRemoved)
                 if result.isNotClothing {
-                    state.errorMessage = "This doesn't look like a clothing item. You can still add it manually."
+                    // Non-fatal: still let the user save manually, but warn after sheet opens.
+                    print("[AutoTagger] Item identified as not-clothing")
                 }
                 draft.name = result.name
                 draft.category = result.category
@@ -113,15 +103,25 @@ struct AddItemSourceSheet: View {
                 draft.occasionTags = result.occasionTags
                 draft.materialIsGuess = true
             } catch {
-                state.errorMessage = error.localizedDescription
+                // Fatal: don't open confirm sheet, surface the error and let user retry.
+                print("[AutoTagger] Failed: \(error)")
+                fatalError = error.localizedDescription
             }
+        } else {
+            print("[AutoTagger] No API key — skipping auto-tag, opening manual confirm")
         }
 
-        state.pendingDraft = draft
+        isAnalyzing = false
+
+        if let fatalError {
+            errorMessage = fatalError
+            return
+        }
+        draftToConfirm = IdentifiedDraft(draft: draft)
     }
 }
 
-private struct DraftHolder: Identifiable {
+private struct IdentifiedDraft: Identifiable {
     let id = UUID()
     let draft: ItemConfirmDraft
 }

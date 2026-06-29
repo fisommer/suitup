@@ -100,7 +100,7 @@ export async function extractWithVision(
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-latest",
+        model: "claude-sonnet-4-6",
         max_tokens: 1024,
         system: systemPrompt,
         tools: [toolDef],
