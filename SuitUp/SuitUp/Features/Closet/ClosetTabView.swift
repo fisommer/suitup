@@ -8,16 +8,23 @@ struct ClosetTabView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if items.isEmpty {
-                    ContentUnavailableView(
-                        "Your closet is empty",
-                        systemImage: "hanger",
-                        description: Text("Tap + to add your first piece.")
-                    )
-                } else {
-                    ClosetRailsView(items: items)
+            ZStack(alignment: .bottom) {
+                Group {
+                    if items.isEmpty {
+                        ContentUnavailableView(
+                            "Your closet is empty",
+                            systemImage: "hanger",
+                            description: Text("Tap + to add your first piece.")
+                        )
+                    } else {
+                        ClosetRailsView(items: items)
+                    }
                 }
+
+                #if DEBUG
+                devControls
+                    .padding(.bottom, 8)
+                #endif
             }
             .navigationTitle("Closet")
             .toolbar {
@@ -32,27 +39,39 @@ struct ClosetTabView: View {
                         Image(systemName: "plus")
                     }
                 }
-                #if DEBUG
-                ToolbarItem(placement: .bottomBar) {
-                    if items.isEmpty {
-                        Button("Dev: Seed sample closet") {
-                            SeedData.seed(modelContext: modelContext)
-                        }
-                        .font(.caption)
-                    } else {
-                        Button("Dev: Wipe closet", role: .destructive) {
-                            SeedData.wipe(modelContext: modelContext, items: items)
-                        }
-                        .font(.caption)
-                    }
-                }
-                #endif
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
             }
         }
     }
+
+    #if DEBUG
+    @ViewBuilder
+    private var devControls: some View {
+        if items.isEmpty {
+            Button {
+                SeedData.seed(modelContext: modelContext)
+            } label: {
+                Label("Dev: Seed sample closet", systemImage: "sparkles")
+                    .font(.caption)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.ultraThinMaterial, in: Capsule())
+            }
+        } else {
+            Button(role: .destructive) {
+                SeedData.wipe(modelContext: modelContext, items: items)
+            } label: {
+                Label("Dev: Wipe closet", systemImage: "trash")
+                    .font(.caption)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.ultraThinMaterial, in: Capsule())
+            }
+        }
+    }
+    #endif
 }
 
 #Preview {
