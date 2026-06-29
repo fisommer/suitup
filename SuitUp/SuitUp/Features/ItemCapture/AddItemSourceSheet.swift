@@ -6,6 +6,7 @@ struct AddItemSourceSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var libraryPickerItem: PhotosPickerItem?
     @State private var showCamera = false
+    @State private var showPasteURL = false
     @State private var isAnalyzing = false
     @State private var errorMessage: String?
     @State private var draftToConfirm: IdentifiedDraft?
@@ -22,10 +23,11 @@ struct AddItemSourceSheet: View {
                     PhotosPicker(selection: $libraryPickerItem, matching: .images, photoLibrary: .shared()) {
                         Label("Pick from library", systemImage: "photo")
                     }
-                    Button {} label: {
+                    Button {
+                        showPasteURL = true
+                    } label: {
                         Label("Paste link", systemImage: "link")
                     }
-                    .disabled(true) // Phase 4
                 }
                 if !KeychainStore.hasKey {
                     Section {
@@ -48,6 +50,15 @@ struct AddItemSourceSheet: View {
                 }
                 .ignoresSafeArea()
             }
+            .sheet(isPresented: $showPasteURL, onDismiss: {
+                // If the URL flow saved an item, AppEvents.shared.lastSavedItemId is set,
+                // so we should dismiss the source sheet too.
+                if AppEvents.shared.lastSavedItemId != nil {
+                    dismiss()
+                }
+            }) {
+                PasteURLView()
+            }
             .onChange(of: libraryPickerItem) { _, newItem in
                 guard let newItem else { return }
                 Task {
@@ -55,7 +66,6 @@ struct AddItemSourceSheet: View {
                        let img = UIImage(data: data) {
                         await process(image: img)
                     }
-                    // Reset picker so the same selection doesn't refire.
                     await MainActor.run { libraryPickerItem = nil }
                 }
             }
@@ -73,8 +83,6 @@ struct AddItemSourceSheet: View {
             )
             .sheet(item: $draftToConfirm) { holder in
                 ItemConfirmView(draft: holder.draft) { _ in
-                    // After a successful save, close the parent add-source sheet
-                    // so the user lands back on the closet with their new item.
                     dismiss()
                 }
             }
