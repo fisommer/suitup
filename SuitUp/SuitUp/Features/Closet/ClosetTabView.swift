@@ -5,6 +5,7 @@ struct ClosetTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Item.createdAt, order: .reverse) private var items: [Item]
     @State private var showingSettings = false
+    @State private var showingAddSheet = false
 
     var body: some View {
         NavigationStack {
@@ -34,14 +35,16 @@ struct ClosetTabView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    // Add-item flow wired up in Phase 3.
-                    Button {} label: {
+                    Button { showingAddSheet = true } label: {
                         Image(systemName: "plus")
                     }
                 }
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
+            }
+            .sheet(isPresented: $showingAddSheet) {
+                AddItemSourceSheet()
             }
         }
     }
