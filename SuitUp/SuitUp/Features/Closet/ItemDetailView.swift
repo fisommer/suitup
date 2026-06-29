@@ -6,6 +6,7 @@ struct ItemDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var showingDeleteConfirm = false
+    @State private var showingStyling = false
 
     var body: some View {
         ScrollView {
@@ -24,7 +25,7 @@ struct ItemDetailView: View {
                 .padding(.horizontal)
 
                 Button {
-                    // Wired up in Phase 6
+                    showingStyling = true
                 } label: {
                     Label("Style this piece", systemImage: "sparkles")
                         .frame(maxWidth: .infinity)
@@ -81,6 +82,9 @@ struct ItemDetailView: View {
                 try? modelContext.save()
                 dismiss()
             }
+        }
+        .sheet(isPresented: $showingStyling) {
+            StylingView(selected: item)
         }
     }
 }
