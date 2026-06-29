@@ -6,6 +6,7 @@ struct ClosetTabView: View {
     @Query(sort: \Item.createdAt, order: .reverse) private var items: [Item]
     @State private var showingSettings = false
     @State private var showingAddSheet = false
+    @StateObject private var events = AppEvents.shared
 
     var body: some View {
         NavigationStack {
@@ -18,7 +19,7 @@ struct ClosetTabView: View {
                             description: Text("Tap + to add your first piece.")
                         )
                     } else {
-                        ClosetRailsView(items: items)
+                        ClosetRailsView(items: items, highlightedItemId: events.lastSavedItemId)
                     }
                 }
 
@@ -26,7 +27,15 @@ struct ClosetTabView: View {
                 devControls
                     .padding(.bottom, 8)
                 #endif
+
+                if events.showSavedToast {
+                    SavedToast(name: events.lastSavedItemName ?? "")
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .frame(maxHeight: .infinity, alignment: .top)
+                        .padding(.top, 8)
+                }
             }
+            .animation(.easeInOut(duration: 0.2), value: events.showSavedToast)
             .navigationTitle("Closet")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

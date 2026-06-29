@@ -3,15 +3,17 @@ import SwiftData
 
 struct ItemConfirmView: View {
     @State var draft: ItemConfirmDraft
+    var onSaved: ((UUID) -> Void)? = nil
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var colorsText: String = ""
     @State private var occasionTagsText: String = ""
 
-    init(draft: ItemConfirmDraft) {
+    init(draft: ItemConfirmDraft, onSaved: ((UUID) -> Void)? = nil) {
         _draft = State(initialValue: draft)
         _colorsText = State(initialValue: draft.colors.joined(separator: ", "))
         _occasionTagsText = State(initialValue: draft.occasionTags.joined(separator: ", "))
+        self.onSaved = onSaved
     }
 
     var body: some View {
@@ -25,7 +27,13 @@ struct ItemConfirmView: View {
                         .frame(maxWidth: .infinity)
                         .background(Color(.secondarySystemBackground))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
-                    Toggle("Background removed", isOn: $draft.useBackgroundRemoved)
+                    if draft.bgRemovalSucceeded {
+                        Toggle("Background removed", isOn: $draft.useBackgroundRemoved)
+                    } else {
+                        Label("Background couldn't be removed automatically", systemImage: "info.circle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 Section("Details") {
@@ -138,6 +146,8 @@ struct ItemConfirmView: View {
             )
             modelContext.insert(item)
             try? modelContext.save()
+            AppEvents.shared.didSaveItem(id: id, name: item.name)
+            onSaved?(id)
             dismiss()
         } catch {
             print("Save failed: \(error)")

@@ -5,6 +5,7 @@ struct ItemConfirmDraft {
     var originalImage: UIImage
     var bgRemovedImage: UIImage
     var useBackgroundRemoved: Bool = true
+    var bgRemovalSucceeded: Bool = true   // false → toggle should default off + note shown
     var name: String = ""
     var category: ItemCategory = .top
     var subcategory: String = ""

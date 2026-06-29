@@ -72,7 +72,11 @@ struct AddItemSourceSheet: View {
                 message: { Text(errorMessage ?? "") }
             )
             .sheet(item: $draftToConfirm) { holder in
-                ItemConfirmView(draft: holder.draft)
+                ItemConfirmView(draft: holder.draft) { _ in
+                    // After a successful save, close the parent add-source sheet
+                    // so the user lands back on the closet with their new item.
+                    dismiss()
+                }
             }
         }
     }
@@ -80,15 +84,29 @@ struct AddItemSourceSheet: View {
     @MainActor
     private func process(image: UIImage) async {
         isAnalyzing = true
-        let bgRemoved = await BackgroundRemoval.removeBackground(from: image)
-        var draft = ItemConfirmDraft(originalImage: image, bgRemovedImage: bgRemoved)
+        let outcome = await BackgroundRemoval.attemptRemoval(from: image)
+        let bgRemoved: UIImage
+        let bgSucceeded: Bool
+        switch outcome {
+        case .removed(let img):
+            bgRemoved = img
+            bgSucceeded = true
+        case .noSubjectFound(let img), .failed(_, let img):
+            bgRemoved = img
+            bgSucceeded = false
+        }
+        var draft = ItemConfirmDraft(
+            originalImage: image,
+            bgRemovedImage: bgRemoved,
+            useBackgroundRemoved: bgSucceeded
+        )
+        draft.bgRemovalSucceeded = bgSucceeded
         var fatalError: String? = nil
 
         if KeychainStore.hasKey {
             do {
                 let result = try await AutoTagger().tag(image: bgRemoved)
                 if result.isNotClothing {
-                    // Non-fatal: still let the user save manually, but warn after sheet opens.
                     print("[AutoTagger] Item identified as not-clothing")
                 }
                 draft.name = result.name
@@ -103,7 +121,6 @@ struct AddItemSourceSheet: View {
                 draft.occasionTags = result.occasionTags
                 draft.materialIsGuess = true
             } catch {
-                // Fatal: don't open confirm sheet, surface the error and let user retry.
                 print("[AutoTagger] Failed: \(error)")
                 fatalError = error.localizedDescription
             }
