@@ -4,6 +4,9 @@ import PhotosUI
 import UIKit
 
 struct AddReferenceSheet: View {
+    /// Optional image preloaded from the share extension. When set, the picker step is skipped.
+    var preloadedImage: UIImage? = nil
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @State private var libItem: PhotosPickerItem?
@@ -69,6 +72,11 @@ struct AddReferenceSheet: View {
                         await MainActor.run { preview = img }
                     }
                     await MainActor.run { libItem = nil }
+                }
+            }
+            .onAppear {
+                if preview == nil, let preloadedImage {
+                    preview = preloadedImage
                 }
             }
         }

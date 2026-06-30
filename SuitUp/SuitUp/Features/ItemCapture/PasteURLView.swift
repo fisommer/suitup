@@ -2,6 +2,9 @@ import SwiftUI
 import UIKit
 
 struct PasteURLView: View {
+    /// Optional URL preloaded from the share extension. When set, the crawler auto-runs on appear.
+    var prefilledURL: String? = nil
+
     @Environment(\.dismiss) private var dismiss
     @State private var urlText: String = ""
     @State private var phase: Phase = .input
@@ -10,6 +13,7 @@ struct PasteURLView: View {
     @State private var crawlResult: CrawlResult?
     @State private var errorMessage: String?
     @State private var draftToConfirm: IdentifiedDraft?
+    @State private var didAutoCrawl: Bool = false
 
     enum Phase { case input, crawling, picker }
 
@@ -41,6 +45,16 @@ struct PasteURLView: View {
             .sheet(item: $draftToConfirm) { holder in
                 ItemConfirmView(draft: holder.draft) { _ in
                     dismiss()
+                }
+            }
+            .onAppear {
+                guard !didAutoCrawl else { return }
+                if urlText.isEmpty, let prefilledURL, !prefilledURL.isEmpty {
+                    urlText = prefilledURL
+                    didAutoCrawl = true
+                    if isValidURL(prefilledURL) {
+                        Task { await beginCrawl() }
+                    }
                 }
             }
         }

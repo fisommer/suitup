@@ -6,19 +6,83 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		4B354ED52FF3C72B0042808B /* SuitUpShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4B354ECB2FF3C72A0042808B /* SuitUpShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		4B354ED32FF3C72B0042808B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4B76D1392FF2AB7000CC4BE7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4B354ECA2FF3C72A0042808B;
+			remoteInfo = SuitUpShareExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		4B354ED62FF3C72B0042808B /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				4B354ED52FF3C72B0042808B /* SuitUpShareExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		4B354ECB2FF3C72A0042808B /* SuitUpShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SuitUpShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		4B76D1412FF2AB7000CC4BE7 /* SuitUp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SuitUp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		4B354ED92FF3C72B0042808B /* Exceptions for "SuitUpShareExtension" folder in "SuitUpShareExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 4B354ECA2FF3C72A0042808B /* SuitUpShareExtension */;
+		};
+		4B354EE02FF3C99B0042808B /* Exceptions for "SuitUp" folder in "SuitUpShareExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Services/SharedContainer.swift,
+			);
+			target = 4B354ECA2FF3C72A0042808B /* SuitUpShareExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		4B354ECC2FF3C72A0042808B /* SuitUpShareExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				4B354ED92FF3C72B0042808B /* Exceptions for "SuitUpShareExtension" folder in "SuitUpShareExtension" target */,
+			);
+			path = SuitUpShareExtension;
+			sourceTree = "<group>";
+		};
 		4B76D1432FF2AB7000CC4BE7 /* SuitUp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				4B354EE02FF3C99B0042808B /* Exceptions for "SuitUp" folder in "SuitUpShareExtension" target */,
+			);
 			path = SuitUp;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		4B354EC82FF3C72A0042808B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		4B76D13E2FF2AB7000CC4BE7 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -33,6 +97,7 @@
 			isa = PBXGroup;
 			children = (
 				4B76D1432FF2AB7000CC4BE7 /* SuitUp */,
+				4B354ECC2FF3C72A0042808B /* SuitUpShareExtension */,
 				4B76D1422FF2AB7000CC4BE7 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +106,7 @@
 			isa = PBXGroup;
 			children = (
 				4B76D1412FF2AB7000CC4BE7 /* SuitUp.app */,
+				4B354ECB2FF3C72A0042808B /* SuitUpShareExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,6 +114,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		4B354ECA2FF3C72A0042808B /* SuitUpShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4B354EDA2FF3C72B0042808B /* Build configuration list for PBXNativeTarget "SuitUpShareExtension" */;
+			buildPhases = (
+				4B354EC72FF3C72A0042808B /* Sources */,
+				4B354EC82FF3C72A0042808B /* Frameworks */,
+				4B354EC92FF3C72A0042808B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				4B354ECC2FF3C72A0042808B /* SuitUpShareExtension */,
+			);
+			name = SuitUpShareExtension;
+			packageProductDependencies = (
+			);
+			productName = SuitUpShareExtension;
+			productReference = 4B354ECB2FF3C72A0042808B /* SuitUpShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		4B76D1402FF2AB7000CC4BE7 /* SuitUp */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 4B76D14E2FF2AB7400CC4BE7 /* Build configuration list for PBXNativeTarget "SuitUp" */;
@@ -55,10 +143,12 @@
 				4B76D13D2FF2AB7000CC4BE7 /* Sources */,
 				4B76D13E2FF2AB7000CC4BE7 /* Frameworks */,
 				4B76D13F2FF2AB7000CC4BE7 /* Resources */,
+				4B354ED62FF3C72B0042808B /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				4B354ED42FF3C72B0042808B /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				4B76D1432FF2AB7000CC4BE7 /* SuitUp */,
@@ -80,6 +170,9 @@
 				LastSwiftUpdateCheck = 2660;
 				LastUpgradeCheck = 2660;
 				TargetAttributes = {
+					4B354ECA2FF3C72A0042808B = {
+						CreatedOnToolsVersion = 26.6;
+					};
 					4B76D1402FF2AB7000CC4BE7 = {
 						CreatedOnToolsVersion = 26.6;
 					};
@@ -100,11 +193,19 @@
 			projectRoot = "";
 			targets = (
 				4B76D1402FF2AB7000CC4BE7 /* SuitUp */,
+				4B354ECA2FF3C72A0042808B /* SuitUpShareExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		4B354EC92FF3C72A0042808B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		4B76D13F2FF2AB7000CC4BE7 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -115,6 +216,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		4B354EC72FF3C72A0042808B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		4B76D13D2FF2AB7000CC4BE7 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -124,7 +232,73 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		4B354ED42FF3C72B0042808B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4B354ECA2FF3C72A0042808B /* SuitUpShareExtension */;
+			targetProxy = 4B354ED32FF3C72B0042808B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		4B354ED72FF3C72B0042808B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = SuitUpShareExtension/SuitUpShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = B444WA5GD2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SuitUpShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SuitUpShareExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.fisommer.SuitUp.SuitUpShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		4B354ED82FF3C72B0042808B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = SuitUpShareExtension/SuitUpShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = B444WA5GD2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SuitUpShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SuitUpShareExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.fisommer.SuitUp.SuitUpShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		4B76D14C2FF2AB7400CC4BE7 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -251,6 +425,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = SuitUp/SuitUp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = B444WA5GD2;
@@ -285,6 +460,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = SuitUp/SuitUp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = B444WA5GD2;
@@ -317,6 +493,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		4B354EDA2FF3C72B0042808B /* Build configuration list for PBXNativeTarget "SuitUpShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4B354ED72FF3C72B0042808B /* Debug */,
+				4B354ED82FF3C72B0042808B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		4B76D13C2FF2AB7000CC4BE7 /* Build configuration list for PBXProject "SuitUp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

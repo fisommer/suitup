@@ -50,6 +50,11 @@ struct RecreateTabView: View {
 }
 
 struct NewRecreateSheet: View {
+    /// Optional image preloaded from the share extension. When set, picker step is skipped.
+    var preloadedImage: UIImage? = nil
+    /// Optional name prefill (e.g. inferred from a shared post). Editable.
+    var prefilledName: String? = nil
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query private var closet: [Item]
@@ -115,6 +120,14 @@ struct NewRecreateSheet: View {
                     if let data = try? await new.loadTransferable(type: Data.self), let img = UIImage(data: data) {
                         await MainActor.run { sourceImage = img }
                     }
+                }
+            }
+            .onAppear {
+                if sourceImage == nil, let preloadedImage {
+                    sourceImage = preloadedImage
+                }
+                if name.isEmpty, let prefilledName, !prefilledName.isEmpty {
+                    name = prefilledName
                 }
             }
             .alert("Failed", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } }), actions: { Button("OK", role: .cancel) {} }, message: { Text(errorMessage ?? "") })
