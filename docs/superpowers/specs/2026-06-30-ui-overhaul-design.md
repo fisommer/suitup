@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-30
 **Companion to:** `IMPLEMENTATION.md` (post-Phase 9)
-**Status:** approved direction; ready for an implementation plan
+**Status:** **Shipped** as of 2026-06-30. See "What actually shipped vs spec" below for additions made during implementation.
 
 ## Context
 
@@ -23,6 +23,33 @@ Outcome: a real design system (tokens + components), every existing screen re-sk
 - **Splash / onboarding / login:** **skipped** (SuitUp is personal-app, no accounts).
 - **Scope:** full overhaul — build design system, refactor every existing screen. Doesn't touch flow logic, only visuals.
 - **Approach:** design tokens + reusable components + screen-by-screen refactor. Not tokens-only and not components-only.
+
+## What actually shipped vs spec
+
+The overhaul shipped in 8 commits (`cb9096d` → `b54d761` on master). Plus the following additions made during implementation, outside the original spec:
+
+**Visual polish additions:**
+- App icon: gold-S sigil on warm near-black (1024×1024, single asset used for Any/Dark/Tinted slots).
+- Sticky floating headers on all four tab views (Closet, Refs, Outfits, Recreate) with `.ultraThinMaterial` blur — content scrolls under them.
+- Pinterest-style two-column masonry grid for the References tab (natural image aspect ratios) instead of the originally-spec'd fixed-grid.
+- Sheet detents that auto-expand: AddReferenceSheet and NewRecreateSheet start at `.medium`, animate to `.large` once an image is picked.
+- Success toasts surface on all four main tab views (the spec only had Closet wired).
+
+**Product features added beyond the spec:**
+- **Context-aware FAB.** The center gold + on the tab bar opens different sheets depending on the active tab: Closet → AddItemSourceSheet, References → AddReferenceSheet, Outfits → OutfitBuilderView, Recreate → NewRecreateSheet.
+- **Item love rating.** `Item.isLoved: Bool` (non-breaking SwiftData migration). Heart toggle on `ItemDetailView`. Loved items sort first in closet rails ahead of date-added. Small heart badge on loved rail tiles.
+- **Wishlist rail in Closet.** Bottom-most rail showing `WantedPiece` entries — dashed-border tile placeholders since wishlist entries don't have photos.
+- **Category drill-down.** Tap a section header ("Outerwear · 4") in `ClosetRailsView` to push into `CategoryDetailView` — Pinterest-style two-column masonry of that one category. Same visual language as References.
+- **Multiple matches per recreate piece.** `PieceMatch.matchedItemIds: [UUID]` (Codable handles legacy single-match payloads). `RecreateService` prompt + schema now ask for ALL closet itemIds per piece, ordered best→worst. Result view shows a horizontal carousel of alternatives when count > 1.
+- **AI-suggested outfit name.** `RecreateResult.suggestedName: String?` populated in the same tool call as parse/match (no extra API request). Used as the attempt name if the user didn't type one.
+- **Auto-nav to result detail.** `NewRecreateSheet` takes an `onCompleted` callback; after analyze auto-saves the attempt and `RecreateTabView` pushes it onto its `NavigationPath` directly. No more dump-back-to-overview.
+- **Save-as-want chip.** Proper chip-style button with honey background + bookmark icon in the missing-piece rows. Saved state shows a muted "Saved to wishlist" pill.
+
+**Component count is 13, not 12.** The spec called for 12. `CategoryDetailView` and the wishlist tile were added as feature screens, not components. The 13th component slot is occupied by no new component — the count in the spec stays accurate as a *component* count.
+
+**Notes on what was lightened:**
+- `ItemConfirmView` kept its SwiftUI `Form` chrome (lighter restyle — Canvas background + new save bar + SUBanner for crawl warnings), rather than a full hand-built layout. Form's keyboard handling and section semantics are worth more than perfect chrome here.
+- `StylingView` and `OutfitDetailView` were lightly restyled (color/font swaps) rather than fully reflowed. They were already visually OK; the swap brought them into the system.
 
 ## Design tokens
 
