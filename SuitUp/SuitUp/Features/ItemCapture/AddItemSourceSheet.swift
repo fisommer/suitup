@@ -27,7 +27,7 @@ struct AddItemSourceSheet: View {
                             .foregroundStyle(Color.suInkSecondary)
                     }
                     .padding(.horizontal, SUSpace.lg)
-                    .padding(.top, SUSpace.md)
+                    .padding(.top, SUSpace.lg)
 
                     VStack(spacing: SUSpace.sm) {
                         sourceRow(icon: "camera", title: "Take photo") { showCamera = true }
@@ -60,6 +60,8 @@ struct AddItemSourceSheet: View {
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
             .fullScreenCover(isPresented: $showCamera) {
                 CameraPicker { image in
                     Task { await processBatch(images: [image]) }

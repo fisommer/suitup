@@ -15,10 +15,7 @@ struct ClosetTabView: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
-                        headerRow
-                            .padding(.horizontal, SUSpace.lg)
-                            .padding(.top, SUSpace.md)
-                            .padding(.bottom, SUSpace.lg)
+                        Color.clear.frame(height: headerHeight)
 
                         if items.isEmpty {
                             VStack {
@@ -49,14 +46,25 @@ struct ClosetTabView: View {
                             #endif
                         }
 
-                        // Bottom inset so content clears the floating tab bar
                         Color.clear.frame(height: 100)
                     }
                 }
 
+                // Floating header
+                headerRow
+                    .padding(.horizontal, SUSpace.lg)
+                    .padding(.top, SUSpace.md)
+                    .padding(.bottom, SUSpace.lg)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        Color.suCanvas
+                            .opacity(0.92)
+                            .background(.ultraThinMaterial)
+                    )
+
                 if events.showSavedToast {
                     SUToast(message: "Saved \(events.lastSavedItemName ?? "")")
-                        .padding(.top, SUSpace.md)
+                        .padding(.top, headerHeight + SUSpace.sm)
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
@@ -70,6 +78,8 @@ struct ClosetTabView: View {
             }
         }
     }
+
+    private var headerHeight: CGFloat { 80 }
 
     private var headerRow: some View {
         HStack(alignment: .firstTextBaseline) {

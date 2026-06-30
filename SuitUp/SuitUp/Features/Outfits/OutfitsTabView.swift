@@ -12,15 +12,12 @@ struct OutfitsTabView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
+            ZStack(alignment: .top) {
                 Color.suCanvas.ignoresSafeArea()
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
-                        headerRow
-                            .padding(.horizontal, SUSpace.lg)
-                            .padding(.top, SUSpace.md)
-                            .padding(.bottom, SUSpace.lg)
+                        Color.clear.frame(height: headerHeight)
 
                         if outfits.isEmpty {
                             VStack {
@@ -57,6 +54,17 @@ struct OutfitsTabView: View {
                 .navigationDestination(for: Outfit.self) { outfit in
                     OutfitDetailView(outfit: outfit)
                 }
+
+                headerRow
+                    .padding(.horizontal, SUSpace.lg)
+                    .padding(.top, SUSpace.md)
+                    .padding(.bottom, SUSpace.lg)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        Color.suCanvas
+                            .opacity(0.92)
+                            .background(.ultraThinMaterial)
+                    )
             }
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showingBuilder) {
@@ -64,6 +72,8 @@ struct OutfitsTabView: View {
             }
         }
     }
+
+    private var headerHeight: CGFloat { 80 }
 
     private var headerRow: some View {
         HStack(alignment: .firstTextBaseline) {

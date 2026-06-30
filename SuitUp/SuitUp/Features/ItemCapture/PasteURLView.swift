@@ -19,20 +19,17 @@ struct PasteURLView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                switch phase {
-                case .input: inputView
-                case .crawling: crawlingView
-                case .picker: pickerView
+            ZStack {
+                Color.suCanvas.ignoresSafeArea()
+                Group {
+                    switch phase {
+                    case .input: inputView
+                    case .crawling: crawlingView
+                    case .picker: pickerView
+                    }
                 }
             }
-            .navigationTitle("Add from link")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .alert(
                 "Crawl failed",
                 isPresented: Binding(
@@ -60,98 +57,122 @@ struct PasteURLView: View {
         }
     }
 
+    private var headerRow: some View {
+        HStack {
+            Text("Add from link")
+                .suSectionTitle()
+                .foregroundStyle(Color.suInkPrimary)
+            Spacer()
+            Button("Cancel") { dismiss() }
+                .font(.custom("Inter Variable", size: 14).weight(.medium))
+                .foregroundStyle(Color.suInkSecondary)
+        }
+        .padding(.horizontal, SUSpace.lg)
+        .padding(.top, SUSpace.lg)
+    }
+
     // MARK: - Phases
 
     private var inputView: some View {
-        Form {
-            Section {
-                TextField("https://…", text: $urlText)
-                    .keyboardType(.URL)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-                if let clip = UIPasteboard.general.string,
-                   clip.lowercased().hasPrefix("http"),
-                   clip != urlText {
-                    Button {
-                        urlText = clip
-                    } label: {
-                        Label {
-                            Text("Paste \"\(clip.prefix(40))…\"")
-                                .lineLimit(1)
-                        } icon: {
-                            Image(systemName: "doc.on.clipboard")
+        ScrollView {
+            VStack(alignment: .leading, spacing: SUSpace.lg) {
+                headerRow
+
+                VStack(alignment: .leading, spacing: SUSpace.md) {
+                    SUTextField(
+                        label: "Product URL",
+                        text: $urlText,
+                        placeholder: "https://…",
+                        keyboardType: .URL,
+                        autocapitalization: .never,
+                        autocorrect: false
+                    )
+
+                    if let clip = UIPasteboard.general.string,
+                       clip.lowercased().hasPrefix("http"),
+                       clip != urlText {
+                        Button {
+                            urlText = clip
+                        } label: {
+                            HStack(spacing: SUSpace.sm) {
+                                Image(systemName: "doc.on.clipboard")
+                                    .font(.system(size: 14, weight: .light))
+                                Text("Paste \"\(clip.prefix(40))…\"")
+                                    .suCaption()
+                                    .lineLimit(1)
+                            }
+                            .foregroundStyle(Color.suAccentDeep)
                         }
+                        .buttonStyle(.plain)
                     }
+
+                    Text("Works best with major retailers (Zalando, Uniqlo, COS, Zara, H&M, ASOS, etc.).")
+                        .suCaption()
+                        .foregroundStyle(Color.suInkTertiary)
                 }
-            } header: {
-                Text("Product URL")
-            } footer: {
-                Text("Works best with major retailers (Zalando, Uniqlo, COS, Zara, H&M, ASOS, etc.).")
-            }
-            Section {
-                Button {
+                .padding(.horizontal, SUSpace.lg)
+
+                SUButton("Continue", style: isValidURL(urlText) ? .primary : .disabled) {
                     Task { await beginCrawl() }
-                } label: {
-                    HStack {
-                        Spacer()
-                        Text("Continue")
-                            .fontWeight(.semibold)
-                        Spacer()
-                    }
                 }
-                .disabled(!isValidURL(urlText))
+                .padding(.horizontal, SUSpace.lg)
+                .padding(.top, SUSpace.sm)
+
+                Spacer().frame(height: SUSpace.lg)
             }
         }
     }
 
     private var crawlingView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: SUSpace.md) {
             ProgressView()
+                .tint(Color.suAccentDeep)
             Text("Fetching product details…")
-                .foregroundStyle(.secondary)
+                .suBody()
+                .foregroundStyle(Color.suInkSecondary)
             if let host = URL(string: urlText)?.host {
                 Text(host)
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .suCaption()
+                    .foregroundStyle(Color.suInkTertiary)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var pickerView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: SUSpace.lg) {
+            headerRow
+
             Text("Pick the best photo")
-                .font(.headline)
+                .suHeadline()
+                .foregroundStyle(Color.suInkPrimary)
+
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
+                HStack(spacing: SUSpace.md) {
                     ForEach(Array(images.enumerated()), id: \.offset) { idx, img in
                         Image(uiImage: img)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 200, height: 260)
-                            .background(Color(.secondarySystemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .background(Color.suSurfaceMuted)
+                            .clipShape(RoundedRectangle(cornerRadius: SURadius.md, style: .continuous))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(idx == selectedIndex ? Color.accentColor : .clear, lineWidth: 3)
+                                RoundedRectangle(cornerRadius: SURadius.md, style: .continuous)
+                                    .strokeBorder(idx == selectedIndex ? Color.suAccent : .clear, lineWidth: 2.5)
                             )
                             .onTapGesture { selectedIndex = idx }
                     }
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, SUSpace.lg)
             }
-            Button {
+
+            SUButton("Use selected") {
                 Task { await proceedToConfirm() }
-            } label: {
-                Text("Use selected")
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
             }
-            .buttonStyle(.borderedProminent)
-            .padding(.horizontal)
+            .padding(.horizontal, SUSpace.lg)
+
             Spacer()
         }
-        .padding(.top)
     }
 
     // MARK: - Actions

@@ -11,10 +11,10 @@ struct StoredImage: View {
                 .aspectRatio(contentMode: contentMode)
         } else {
             ZStack {
-                Color.gray.opacity(0.12)
+                Color.suSurfaceMuted
                 Image(systemName: "photo")
-                    .font(.title2)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 20, weight: .light))
+                    .foregroundStyle(Color.suInkTertiary)
             }
         }
     }

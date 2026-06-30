@@ -33,7 +33,7 @@ struct SettingsView: View {
                                 .foregroundStyle(Color.suInkSecondary)
                         }
                         .padding(.horizontal, SUSpace.lg)
-                        .padding(.top, SUSpace.md)
+                        .padding(.top, SUSpace.lg)
 
                         // API key section
                         VStack(alignment: .leading, spacing: SUSpace.md) {

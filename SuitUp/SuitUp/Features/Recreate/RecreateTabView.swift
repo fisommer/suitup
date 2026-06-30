@@ -10,17 +10,12 @@ struct RecreateTabView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
+            ZStack(alignment: .top) {
                 Color.suCanvas.ignoresSafeArea()
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: SUSpace.xl) {
-                        headerRow
-                            .padding(.horizontal, SUSpace.lg)
-                            .padding(.top, SUSpace.md)
-
-                        SUButton("New recreate", icon: "plus") { showingAdd = true }
-                            .padding(.horizontal, SUSpace.lg)
+                        Color.clear.frame(height: headerHeight)
 
                         if !wanted.isEmpty {
                             VStack(alignment: .leading, spacing: SUSpace.md) {
@@ -64,11 +59,24 @@ struct RecreateTabView: View {
                     }
                 }
                 .navigationDestination(for: RecreateAttempt.self) { RecreateResultView(attempt: $0) }
+
+                headerRow
+                    .padding(.horizontal, SUSpace.lg)
+                    .padding(.top, SUSpace.md)
+                    .padding(.bottom, SUSpace.lg)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        Color.suCanvas
+                            .opacity(0.92)
+                            .background(.ultraThinMaterial)
+                    )
             }
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showingAdd) { NewRecreateSheet() }
         }
     }
+
+    private var headerHeight: CGFloat { 80 }
 
     private var headerRow: some View {
         HStack(alignment: .firstTextBaseline) {
@@ -120,51 +128,15 @@ struct NewRecreateSheet: View {
 
     var body: some View {
         NavigationStack {
-            Group {
+            ZStack {
+                Color.suCanvas.ignoresSafeArea()
+
                 switch phase {
-                case .input:
-                    Form {
-                        Section {
-                            TextField("Name (e.g. \"linen Riviera fit\")", text: $name)
-                                .autocorrectionDisabled()
-                        } header: {
-                            Text("Outfit name")
-                        } footer: {
-                            Text("Used later if you save the matched items as an outfit. Optional — you can rename it after.")
-                        }
-                        Section("Pick an outfit image") {
-                            PhotosPicker(selection: $libItem, matching: .images, photoLibrary: .shared()) {
-                                Label("Pick from library", systemImage: "photo")
-                            }
-                            if let sourceImage {
-                                Image(uiImage: sourceImage)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(maxHeight: 360)
-                                    .frame(maxWidth: .infinity)
-                                    .background(Color(.secondarySystemBackground))
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                            }
-                        }
-                        if sourceImage != nil {
-                            Button("Analyze") { Task { await analyze() } }
-                        }
-                    }
-                case .analyzing:
-                    VStack(spacing: 12) {
-                        ProgressView()
-                        Text("Analyzing the look against your closet…")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 32)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                case .input: inputView
+                case .analyzing: analyzingView
                 }
             }
-            .navigationTitle("Recreate look")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+            .toolbar(.hidden, for: .navigationBar)
             .onChange(of: libItem) { _, new in
                 guard let new else { return }
                 Task {
@@ -183,6 +155,105 @@ struct NewRecreateSheet: View {
             }
             .alert("Failed", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } }), actions: { Button("OK", role: .cancel) {} }, message: { Text(errorMessage ?? "") })
         }
+    }
+
+    private var inputView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: SUSpace.lg) {
+                HStack {
+                    Text("Recreate look")
+                        .suSectionTitle()
+                        .foregroundStyle(Color.suInkPrimary)
+                    Spacer()
+                    Button("Cancel") { dismiss() }
+                        .font(.custom("Inter Variable", size: 14).weight(.medium))
+                        .foregroundStyle(Color.suInkSecondary)
+                }
+                .padding(.horizontal, SUSpace.lg)
+                .padding(.top, SUSpace.lg)
+
+                SUTextField(
+                    label: "Outfit name",
+                    text: $name,
+                    placeholder: "e.g. linen Riviera fit",
+                    autocorrect: false
+                )
+                .padding(.horizontal, SUSpace.lg)
+
+                Text("Used later if you save the matched items as an outfit. Optional — you can rename it after.")
+                    .suCaption()
+                    .foregroundStyle(Color.suInkTertiary)
+                    .padding(.horizontal, SUSpace.lg)
+
+                VStack(alignment: .leading, spacing: SUSpace.md) {
+                    SUSectionHeader(title: "Outfit image")
+                        .padding(.horizontal, SUSpace.lg)
+
+                    if let sourceImage {
+                        Image(uiImage: sourceImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(maxHeight: 360)
+                            .frame(maxWidth: .infinity)
+                            .background(Color.suSurfaceMuted)
+                            .clipShape(RoundedRectangle(cornerRadius: SURadius.md, style: .continuous))
+                            .padding(.horizontal, SUSpace.lg)
+                    } else {
+                        PhotosPicker(selection: $libItem, matching: .images, photoLibrary: .shared()) {
+                            HStack(spacing: SUSpace.md) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.suAccentSurface)
+                                        .frame(width: 40, height: 40)
+                                    Image(systemName: "photo.on.rectangle")
+                                        .font(.system(size: 16, weight: .light))
+                                        .foregroundStyle(Color.suAccentDeep)
+                                }
+                                Text("Pick from library")
+                                    .suHeadline()
+                                    .foregroundStyle(Color.suInkPrimary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 14, weight: .light))
+                                    .foregroundStyle(Color.suInkTertiary)
+                            }
+                            .padding(SUSpace.md)
+                            .background(Color.suSurface)
+                            .clipShape(RoundedRectangle(cornerRadius: SURadius.md, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: SURadius.md, style: .continuous)
+                                    .strokeBorder(Color.suBorder, lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, SUSpace.lg)
+                    }
+                }
+
+                if sourceImage != nil {
+                    SUButton("Analyze", icon: "wand.and.stars") {
+                        Task { await analyze() }
+                    }
+                    .padding(.horizontal, SUSpace.lg)
+                    .padding(.top, SUSpace.sm)
+                }
+
+                Spacer().frame(height: SUSpace.lg)
+            }
+        }
+    }
+
+    private var analyzingView: some View {
+        VStack(spacing: SUSpace.md) {
+            ProgressView()
+                .tint(Color.suAccentDeep)
+            Text("Analyzing the look against your closet…")
+                .suBody()
+                .foregroundStyle(Color.suInkSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, SUSpace.xl)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @MainActor

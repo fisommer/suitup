@@ -14,99 +14,135 @@ struct OutfitBuilderView: View {
         return Array(selectedIds).compactMap { lookup[$0] }
     }
 
+    private var canSave: Bool {
+        selectedIds.count >= 2 && selectedIds.count <= 6 && !name.isEmpty
+    }
+
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    TextField("Name", text: $name)
-                    TextField("Notes (optional)", text: $rationale, axis: .vertical)
-                        .lineLimit(1...3)
-                }
+            ZStack {
+                Color.suCanvas.ignoresSafeArea()
 
-                if !selectedItems.isEmpty {
-                    Section("Preview") {
-                        CollageThumb(items: selectedItems)
-                            .frame(height: 240)
-                            .frame(maxWidth: .infinity)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                    }
-                }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: SUSpace.lg) {
+                        HStack {
+                            Text("New outfit")
+                                .suSectionTitle()
+                                .foregroundStyle(Color.suInkPrimary)
+                            Spacer()
+                            Button("Cancel") { dismiss() }
+                                .font(.custom("Inter Variable", size: 14).weight(.medium))
+                                .foregroundStyle(Color.suInkSecondary)
+                        }
+                        .padding(.horizontal, SUSpace.lg)
+                        .padding(.top, SUSpace.lg)
 
-                Section {
-                    if allItems.isEmpty {
-                        Text("Add items to your closet first.")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(allItems) { item in
-                            Button {
-                                toggle(item.id)
-                            } label: {
-                                HStack(spacing: 12) {
-                                    StoredImage(relativePath: item.thumbnailPath, contentMode: .fit)
-                                        .frame(width: 44, height: 56)
-                                        .background(Color(.tertiarySystemBackground))
-                                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(item.name)
-                                        Text(item.category.displayName)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Spacer()
-                                    if selectedIds.contains(item.id) {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundStyle(.tint)
-                                    } else {
-                                        Image(systemName: "circle")
-                                            .foregroundStyle(.tertiary)
+                        VStack(alignment: .leading, spacing: SUSpace.md) {
+                            SUTextField(label: "Name", text: $name, placeholder: "Linen Saturday")
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Notes (optional)")
+                                    .suLabel()
+                                    .foregroundStyle(Color.suInkTertiary)
+                                TextField("e.g. weekend lunch fit", text: $rationale, axis: .vertical)
+                                    .suBody()
+                                    .foregroundStyle(Color.suInkPrimary)
+                                    .lineLimit(1...3)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 12)
+                                    .background(Color.suSurface)
+                                    .clipShape(RoundedRectangle(cornerRadius: SURadius.sm, style: .continuous))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: SURadius.sm, style: .continuous)
+                                            .strokeBorder(Color.suBorder, lineWidth: 1)
+                                    )
+                            }
+                        }
+                        .padding(.horizontal, SUSpace.lg)
+
+                        if !selectedItems.isEmpty {
+                            VStack(alignment: .leading, spacing: SUSpace.md) {
+                                SUSectionHeader(title: "Preview")
+                                    .padding(.horizontal, SUSpace.lg)
+                                CollageThumb(items: selectedItems)
+                                    .frame(height: 240)
+                                    .frame(maxWidth: .infinity)
+                                    .background(Color.suSurfaceMuted)
+                                    .clipShape(RoundedRectangle(cornerRadius: SURadius.md, style: .continuous))
+                                    .padding(.horizontal, SUSpace.lg)
+                            }
+                        }
+
+                        VStack(alignment: .leading, spacing: SUSpace.md) {
+                            SUSectionHeader(
+                                title: "Pick 2–6 items",
+                                count: selectedIds.isEmpty ? nil : selectedIds.count
+                            )
+                            .padding(.horizontal, SUSpace.lg)
+
+                            if allItems.isEmpty {
+                                Text("Add items to your closet first.")
+                                    .suBody()
+                                    .foregroundStyle(Color.suInkTertiary)
+                                    .padding(.horizontal, SUSpace.lg)
+                            } else {
+                                VStack(spacing: SUSpace.sm) {
+                                    ForEach(allItems) { item in
+                                        Button { toggle(item.id) } label: {
+                                            pickerRow(item: item, isSelected: selectedIds.contains(item.id))
+                                        }
+                                        .buttonStyle(.plain)
                                     }
                                 }
+                                .padding(.horizontal, SUSpace.lg)
                             }
-                            .buttonStyle(.plain)
                         }
-                    }
-                } header: {
-                    Text("Pick 2–6 items")
-                } footer: {
-                    if selectedIds.count < 2 {
-                        Text("Pick at least 2 items.")
-                    } else if selectedIds.count > 6 {
-                        Text("Maximum 6 items.")
-                    } else {
-                        Text("\(selectedIds.count) selected")
-                    }
-                }
 
-                Section {
-                    Button {
-                        save()
-                    } label: {
-                        HStack {
-                            Spacer()
-                            Text("Save outfit")
-                                .fontWeight(.semibold)
-                            Spacer()
+                        SUButton("Save outfit", style: canSave ? .primary : .disabled) {
+                            save()
                         }
+                        .padding(.horizontal, SUSpace.lg)
+                        .padding(.top, SUSpace.sm)
+
+                        Spacer().frame(height: SUSpace.lg)
                     }
-                    .disabled(selectedIds.count < 2 || selectedIds.count > 6 || name.isEmpty)
                 }
             }
-            .navigationTitle("New outfit")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
         }
     }
 
-    private func toggle(_ id: UUID) {
-        if selectedIds.contains(id) {
-            selectedIds.remove(id)
-        } else {
-            selectedIds.insert(id)
+    private func pickerRow(item: Item, isSelected: Bool) -> some View {
+        HStack(spacing: SUSpace.md) {
+            StoredImage(relativePath: item.thumbnailPath, contentMode: .fill)
+                .frame(width: 48, height: 60)
+                .background(Color.suSurfaceMuted)
+                .clipShape(RoundedRectangle(cornerRadius: SURadius.sm, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.name)
+                    .font(.custom("Inter Variable", size: 14).weight(.medium))
+                    .foregroundStyle(Color.suInkPrimary)
+                    .lineLimit(1)
+                Text(item.category.displayName)
+                    .suCaption()
+                    .foregroundStyle(Color.suInkTertiary)
+            }
+            Spacer()
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 22, weight: .light))
+                .foregroundStyle(isSelected ? Color.suAccentDeep : Color.suInkTertiary)
         }
+        .padding(SUSpace.md)
+        .background(isSelected ? Color.suAccentSurface : Color.suSurface)
+        .clipShape(RoundedRectangle(cornerRadius: SURadius.md, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: SURadius.md, style: .continuous)
+                .strokeBorder(isSelected ? Color.suAccent : Color.suBorder, lineWidth: isSelected ? 1.5 : 1)
+        )
+    }
+
+    private func toggle(_ id: UUID) {
+        if selectedIds.contains(id) { selectedIds.remove(id) }
+        else { selectedIds.insert(id) }
     }
 
     @MainActor

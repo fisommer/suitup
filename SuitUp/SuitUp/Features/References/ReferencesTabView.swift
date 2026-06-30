@@ -6,23 +6,23 @@ struct ReferencesTabView: View {
     @Query(sort: \ReferenceLook.createdAt, order: .reverse) private var refs: [ReferenceLook]
     @State private var showingAdd = false
 
-    private let cols = [
-        GridItem(.flexible(), spacing: SUSpace.sm),
-        GridItem(.flexible(), spacing: SUSpace.sm),
-        GridItem(.flexible(), spacing: SUSpace.sm),
-    ]
+    /// Pinterest-style alternating split: first ref → left, second → right, alternating.
+    private var leftColumn: [ReferenceLook] {
+        refs.enumerated().filter { $0.offset % 2 == 0 }.map { $0.element }
+    }
+    private var rightColumn: [ReferenceLook] {
+        refs.enumerated().filter { $0.offset % 2 == 1 }.map { $0.element }
+    }
 
     var body: some View {
         NavigationStack {
-            ZStack {
+            ZStack(alignment: .top) {
                 Color.suCanvas.ignoresSafeArea()
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
-                        headerRow
-                            .padding(.horizontal, SUSpace.lg)
-                            .padding(.top, SUSpace.md)
-                            .padding(.bottom, SUSpace.lg)
+                        // Spacer matching the floating header height
+                        Color.clear.frame(height: headerHeight)
 
                         if refs.isEmpty {
                             VStack {
@@ -38,18 +38,9 @@ struct ReferencesTabView: View {
                             }
                             .frame(maxWidth: .infinity)
                         } else {
-                            LazyVGrid(columns: cols, spacing: SUSpace.sm) {
-                                ForEach(refs) { ref in
-                                    NavigationLink(value: ref) {
-                                        StoredImage(relativePath: ref.thumbnailPath, contentMode: .fill)
-                                            .aspectRatio(1, contentMode: .fit)
-                                            .frame(maxWidth: .infinity)
-                                            .background(Color.suSurfaceMuted)
-                                            .clipped()
-                                            .clipShape(RoundedRectangle(cornerRadius: SURadius.sm, style: .continuous))
-                                    }
-                                    .buttonStyle(.plain)
-                                }
+                            HStack(alignment: .top, spacing: SUSpace.md) {
+                                masonryColumn(items: leftColumn)
+                                masonryColumn(items: rightColumn)
                             }
                             .padding(.horizontal, SUSpace.lg)
                         }
@@ -60,6 +51,18 @@ struct ReferencesTabView: View {
                 .navigationDestination(for: ReferenceLook.self) {
                     ReferenceDetailView(ref: $0)
                 }
+
+                // Floating header — stays anchored at top while content scrolls under it.
+                headerRow
+                    .padding(.horizontal, SUSpace.lg)
+                    .padding(.top, SUSpace.md)
+                    .padding(.bottom, SUSpace.lg)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        Color.suCanvas
+                            .opacity(0.92)
+                            .background(.ultraThinMaterial)
+                    )
             }
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showingAdd) {
@@ -68,12 +71,30 @@ struct ReferencesTabView: View {
         }
     }
 
+    /// Approximate height of the floating header — Title row + paddings.
+    private var headerHeight: CGFloat { 80 }
+
     private var headerRow: some View {
         HStack(alignment: .firstTextBaseline) {
             Text("References")
                 .suTitle()
                 .foregroundStyle(Color.suInkPrimary)
             Spacer()
+        }
+    }
+
+    /// One column of the Pinterest grid. Each tile uses its image's natural aspect ratio.
+    private func masonryColumn(items: [ReferenceLook]) -> some View {
+        VStack(spacing: SUSpace.md) {
+            ForEach(items) { ref in
+                NavigationLink(value: ref) {
+                    StoredImage(relativePath: ref.thumbnailPath, contentMode: .fit)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.suSurfaceMuted)
+                        .clipShape(RoundedRectangle(cornerRadius: SURadius.md, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 }
