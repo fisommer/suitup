@@ -3,6 +3,10 @@ import SwiftData
 
 @main
 struct SuitUpApp: App {
+    init() {
+        SUFonts.register()
+    }
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Item.self,
