@@ -14,6 +14,10 @@ export interface CrawlResponse {
     availableSizes?: string[];
     category?: string;
     description?: string;
+    /** Color the user selected via URL variant (resolved to a readable name when possible). */
+    selectedColor?: string;
+    /** Size the user selected via URL variant (resolved to a readable label when possible). */
+    selectedSize?: string;
   };
   warnings: string[];
   error?: string;

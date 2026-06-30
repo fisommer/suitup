@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import type { CrawlResponse } from "../types";
+import { timedFetch } from "../crawler";
 
 interface VisionResult {
   data: CrawlResponse["data"];
@@ -10,7 +11,8 @@ export async function extractWithVision(
   html: string,
   candidateImages: string[],
   pageUrl: string,
-  apiKey: string
+  apiKey: string,
+  urlVariants?: { color?: string; size?: string }
 ): Promise<VisionResult> {
   const $ = cheerio.load(html);
   const title = $("title").text().trim();
@@ -30,7 +32,7 @@ export async function extractWithVision(
   const imageBlocks = await Promise.all(
     topImages.map(async (url) => {
       try {
-        const res = await fetch(url);
+        const res = await timedFetch(url, {}, 8_000);
         if (!res.ok) return null;
         const buf = await res.arrayBuffer();
         if (buf.byteLength === 0 || buf.byteLength > 4_500_000) return null;
@@ -53,6 +55,13 @@ export async function extractWithVision(
 
   const systemPrompt =
     "Extract clothing product details from the provided page content. Return null for any field you cannot determine confidently.";
+
+  const variantHint = urlVariants?.color || urlVariants?.size
+    ? `\n\nNote: the product URL has a variant selected via query params (${[
+        urlVariants.color ? `color code "${urlVariants.color}"` : null,
+        urlVariants.size ? `size code "${urlVariants.size}"` : null,
+      ].filter(Boolean).join(", ")}). Look at the product images to determine the *actually-pictured* color — do NOT just report the page's generic default color. Report \`colors\` as what's visible in the images.`
+    : "";
 
   const toolDef = {
     name: "report_product",
@@ -85,14 +94,14 @@ export async function extractWithVision(
         ...validImageBlocks,
         {
           type: "text",
-          text: `Page title: ${title}\nMeta description: ${metaDesc}\nVisible text: ${visibleText}`,
+          text: `Page title: ${title}\nMeta description: ${metaDesc}\nVisible text: ${visibleText}${variantHint}`,
         },
       ],
     },
   ];
 
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await timedFetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "x-api-key": apiKey,
@@ -107,7 +116,7 @@ export async function extractWithVision(
         tool_choice: { type: "tool", name: "report_product" },
         messages,
       }),
-    });
+    }, 15_000);
 
     if (!res.ok) {
       return {

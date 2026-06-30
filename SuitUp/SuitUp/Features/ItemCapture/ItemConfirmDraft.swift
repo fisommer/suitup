@@ -27,4 +27,8 @@ struct ItemConfirmDraft {
     var additionalImages: [UIImage] = []
 
     var materialIsGuess: Bool = true
+
+    /// Non-fatal warnings from the URL crawler (e.g. "couldn't resolve color variant").
+    /// Surfaced as an info banner at the top of the confirm sheet.
+    var crawlWarnings: [String] = []
 }

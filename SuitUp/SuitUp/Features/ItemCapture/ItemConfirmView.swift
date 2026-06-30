@@ -24,6 +24,17 @@ struct ItemConfirmView: View {
         NavigationStack {
             ZStack(alignment: .bottom) {
                 Form {
+                    if !draft.crawlWarnings.isEmpty {
+                        Section {
+                            VStack(alignment: .leading, spacing: 6) {
+                                ForEach(draft.crawlWarnings, id: \.self) { w in
+                                    Label(w, systemImage: "exclamationmark.triangle.fill")
+                                        .font(.footnote)
+                                        .foregroundStyle(.orange)
+                                }
+                            }
+                        }
+                    }
                     Section {
                         Image(uiImage: draft.useBackgroundRemoved ? draft.bgRemovedImage : draft.originalImage)
                             .resizable()

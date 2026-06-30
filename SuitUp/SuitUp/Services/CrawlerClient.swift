@@ -11,6 +11,11 @@ struct CrawlResult: Decodable {
         let price: Price?
         let availableSizes: [String]?
         let description: String?
+        /// Readable color name corresponding to the variant the user picked via URL query.
+        /// Resolved either via JSON-LD `hasVariant` or by the vision-pass reconciliation.
+        let selectedColor: String?
+        /// Same idea for size.
+        let selectedSize: String?
 
         struct Price: Decodable {
             let value: Double

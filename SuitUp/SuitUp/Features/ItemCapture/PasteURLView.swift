@@ -224,7 +224,16 @@ struct PasteURLView: View {
         draft.sourceUrl = urlText
         draft.name = crawl.data.name ?? ""
         draft.brand = crawl.data.brand ?? ""
-        draft.colors = crawl.data.colors ?? []
+        // Prefer the URL-variant-resolved color when present (vision pass reconciled it
+        // against the actual product image). Falls back to JSON-LD colors.
+        if let sel = crawl.data.selectedColor, !sel.isEmpty {
+            draft.colors = [sel]
+        } else {
+            draft.colors = crawl.data.colors ?? []
+        }
+        if let selSize = crawl.data.selectedSize, !selSize.isEmpty {
+            draft.size = selSize
+        }
         draft.material = crawl.data.materials?.first ?? ""
         if !draft.material.isEmpty {
             draft.materialIsGuess = false
@@ -239,6 +248,9 @@ struct PasteURLView: View {
         if let p = crawl.data.price {
             draft.price = Decimal(p.value)
         }
+        // Surface non-fatal warnings (e.g. unresolved color variant) so the user sees
+        // *why* a field came back empty.
+        draft.crawlWarnings = crawl.warnings.filter { !$0.contains("structured data insufficient") }
         draftToConfirm = IdentifiedDraft(draft: draft)
     }
 
