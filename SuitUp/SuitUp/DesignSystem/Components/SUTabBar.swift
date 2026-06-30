@@ -30,21 +30,21 @@ struct SUTabBar: View {
             // FAB
             Button(action: onFABTap) {
                 Image(systemName: "plus")
-                    .font(.system(size: 20, weight: .medium))
+                    .font(.system(size: 22, weight: .medium))
                     .foregroundStyle(Color.suInkPrimary)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 52, height: 52)
                     .background(Color.suAccent)
                     .clipShape(Circle())
                     .suElevation(.accent)
             }
             .buttonStyle(.plain)
-            .padding(.horizontal, SUSpace.sm)
+            .padding(.horizontal, SUSpace.md)
             ForEach(Array(tabs.dropFirst(2).enumerated()), id: \.element.id) { (offsetIdx, tab) in
                 tabButton(tab: tab, index: offsetIdx + 2)
             }
         }
-        .padding(.horizontal, SUSpace.md)
-        .padding(.vertical, 8)
+        .padding(.horizontal, SUSpace.lg)
+        .padding(.vertical, SUSpace.md)
         .background(Color.suSurface)
         .clipShape(Capsule())
         .overlay(Capsule().strokeBorder(Color.suBorder, lineWidth: 1))
@@ -56,25 +56,26 @@ struct SUTabBar: View {
         Button {
             withAnimation(SUMotion.standard) { selectedIndex = index }
         } label: {
-            VStack(spacing: 2) {
+            VStack(spacing: 3) {
                 Image(systemName: selectedIndex == index ? (tab.filledIcon ?? tab.icon) : tab.icon)
-                    .font(.system(size: 17, weight: selectedIndex == index ? .regular : .light))
+                    .font(.system(size: 19, weight: selectedIndex == index ? .regular : .light))
                 Text(tab.title)
                     .font(.custom("Inter Variable", size: 10).weight(selectedIndex == index ? .semibold : .regular))
                 ZStack {
                     Capsule()
                         .fill(Color.clear)
-                        .frame(width: 16, height: 2)
+                        .frame(width: 18, height: 2)
                     if selectedIndex == index {
                         Capsule()
                             .fill(Color.suAccent)
-                            .frame(width: 16, height: 2)
+                            .frame(width: 18, height: 2)
                             .matchedGeometryEffect(id: "indicator", in: indicatorNS)
                     }
                 }
             }
             .foregroundStyle(selectedIndex == index ? Color.suInkPrimary : Color.suInkTertiary)
             .frame(maxWidth: .infinity)
+            .padding(.vertical, 4)
         }
         .buttonStyle(.plain)
     }

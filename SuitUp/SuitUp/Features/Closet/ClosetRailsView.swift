@@ -15,63 +15,42 @@ struct ClosetRailsView: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 24) {
-                    ForEach(grouped, id: \.0) { (category, items) in
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(category.displayName)
-                                .font(.headline)
-                                .padding(.horizontal)
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
-                                    ForEach(items) { item in
-                                        NavigationLink(value: item) {
-                                            RailItemTile(item: item, isHighlighted: item.id == highlightedItemId)
-                                        }
-                                        .buttonStyle(.plain)
-                                        .id(item.id)
+            VStack(alignment: .leading, spacing: SUSpace.xl) {
+                ForEach(grouped, id: \.0) { (category, items) in
+                    VStack(alignment: .leading, spacing: SUSpace.md) {
+                        SUSectionHeader(title: category.displayName, count: items.count)
+                            .padding(.horizontal, SUSpace.lg)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: SUSpace.md) {
+                                ForEach(items) { item in
+                                    NavigationLink(value: item) {
+                                        SURailTile(
+                                            imagePath: item.thumbnailPath,
+                                            label: item.name,
+                                            subtitle: nil,
+                                            isSelected: item.id == highlightedItemId
+                                        )
+                                        .scaleEffect(item.id == highlightedItemId ? 1.04 : 1.0)
+                                        .animation(SUMotion.standard, value: highlightedItemId)
                                     }
+                                    .buttonStyle(.plain)
+                                    .id(item.id)
                                 }
-                                .padding(.horizontal)
                             }
+                            .padding(.horizontal, SUSpace.lg)
                         }
                     }
                 }
-                .padding(.vertical)
             }
             .onChange(of: highlightedItemId) { _, newId in
                 guard let newId else { return }
-                withAnimation(.easeInOut(duration: 0.3)) {
+                withAnimation(SUMotion.standard) {
                     proxy.scrollTo(newId, anchor: .center)
                 }
             }
         }
         .navigationDestination(for: Item.self) { item in
             ItemDetailView(item: item)
-        }
-    }
-}
-
-private struct RailItemTile: View {
-    let item: Item
-    var isHighlighted: Bool = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            StoredImage(relativePath: item.thumbnailPath, contentMode: .fit)
-                .frame(width: 110, height: 140)
-                .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color.accentColor, lineWidth: isHighlighted ? 3 : 0)
-                )
-                .scaleEffect(isHighlighted ? 1.04 : 1.0)
-                .animation(.easeInOut(duration: 0.25), value: isHighlighted)
-            Text(item.name)
-                .font(.caption)
-                .lineLimit(1)
-                .frame(maxWidth: 110, alignment: .leading)
         }
     }
 }
