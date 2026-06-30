@@ -1,27 +1,18 @@
 import SwiftUI
 
+/// Legacy thin wrapper around SUToast. Kept so existing call sites that
+/// reference `SavedToast(name: …)` keep compiling without churn during the
+/// UI overhaul. New code should use SUToast directly.
 struct SavedToast: View {
     let name: String
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Saved")
-                    .font(.subheadline.weight(.semibold))
-                if !name.isEmpty {
-                    Text(name)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(.regularMaterial, in: Capsule())
-        .overlay(Capsule().stroke(.quaternary, lineWidth: 0.5))
-        .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
+        SUToast(message: name.isEmpty ? "Saved" : "Saved \(name)", icon: "checkmark")
     }
+}
+
+#Preview {
+    SavedToast(name: "Cream linen shirt")
+        .padding()
+        .background(Color.suCanvas)
 }

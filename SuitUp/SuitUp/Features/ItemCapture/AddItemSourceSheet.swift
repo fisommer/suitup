@@ -14,45 +14,52 @@ struct AddItemSourceSheet: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    Button {
-                        showCamera = true
-                    } label: {
-                        Label("Take photo", systemImage: "camera")
+            ZStack {
+                Color.suCanvas.ignoresSafeArea()
+                VStack(spacing: SUSpace.md) {
+                    HStack {
+                        Text("Add to closet")
+                            .suSectionTitle()
+                            .foregroundStyle(Color.suInkPrimary)
+                        Spacer()
+                        Button("Cancel") { dismiss() }
+                            .font(.custom("Inter Variable", size: 14).weight(.medium))
+                            .foregroundStyle(Color.suInkSecondary)
                     }
-                    PhotosPicker(
-                        selection: $libraryPickerItems,
-                        maxSelectionCount: 10,
-                        selectionBehavior: .ordered,
-                        matching: .images,
-                        photoLibrary: .shared()
-                    ) {
-                        Label("Pick from library", systemImage: "photo.on.rectangle")
+                    .padding(.horizontal, SUSpace.lg)
+                    .padding(.top, SUSpace.md)
+
+                    VStack(spacing: SUSpace.sm) {
+                        sourceRow(icon: "camera", title: "Take photo") { showCamera = true }
+                        PhotosPicker(
+                            selection: $libraryPickerItems,
+                            maxSelectionCount: 10,
+                            selectionBehavior: .ordered,
+                            matching: .images,
+                            photoLibrary: .shared()
+                        ) {
+                            sourceRowLabel(icon: "photo.on.rectangle", title: "Pick from library")
+                        }
+                        sourceRow(icon: "link", title: "Paste link") { showPasteURL = true }
                     }
-                    Button {
-                        showPasteURL = true
-                    } label: {
-                        Label("Paste link", systemImage: "link")
-                    }
-                } footer: {
+                    .padding(.horizontal, SUSpace.lg)
+
                     Text("Pick one or many photos. Each will be auto-tagged and you'll confirm them one by one.")
-                }
-                if !KeychainStore.hasKey {
-                    Section {
-                        Label("Add an Anthropic API key in Settings to enable auto-tagging.", systemImage: "exclamationmark.triangle")
-                            .font(.footnote)
-                            .foregroundStyle(.orange)
+                        .suCaption()
+                        .foregroundStyle(Color.suInkTertiary)
+                        .padding(.horizontal, SUSpace.lg)
+                        .padding(.top, SUSpace.xs)
+
+                    if !KeychainStore.hasKey {
+                        SUBanner("Add an Anthropic API key in Settings to enable auto-tagging.", style: .warning)
+                            .padding(.horizontal, SUSpace.lg)
+                            .padding(.top, SUSpace.sm)
                     }
+
+                    Spacer()
                 }
             }
-            .navigationTitle("Add to closet")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .fullScreenCover(isPresented: $showCamera) {
                 CameraPicker { image in
                     Task { await processBatch(images: [image]) }
@@ -105,6 +112,40 @@ struct AddItemSourceSheet: View {
                 }
             }
         }
+    }
+
+    private func sourceRow(icon: String, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            sourceRowLabel(icon: icon, title: title)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func sourceRowLabel(icon: String, title: String) -> some View {
+        HStack(spacing: SUSpace.md) {
+            ZStack {
+                Circle()
+                    .fill(Color.suAccentSurface)
+                    .frame(width: 40, height: 40)
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .light))
+                    .foregroundStyle(Color.suAccentDeep)
+            }
+            Text(title)
+                .suHeadline()
+                .foregroundStyle(Color.suInkPrimary)
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 14, weight: .light))
+                .foregroundStyle(Color.suInkTertiary)
+        }
+        .padding(SUSpace.md)
+        .background(Color.suSurface)
+        .clipShape(RoundedRectangle(cornerRadius: SURadius.md, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: SURadius.md, style: .continuous)
+                .strokeBorder(Color.suBorder, lineWidth: 1)
+        )
     }
 
     /// Load `UIImage`s from picker items. Preserves selection order.

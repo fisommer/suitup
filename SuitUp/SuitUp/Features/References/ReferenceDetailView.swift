@@ -15,36 +15,44 @@ struct ReferenceDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: SUSpace.lg) {
                 StoredImage(relativePath: ref.imagePath, contentMode: .fit)
                     .frame(maxWidth: .infinity)
                     .frame(maxHeight: 500)
-                    .background(Color(.secondarySystemBackground))
+                    .background(Color.suSurfaceMuted)
+                    .clipShape(RoundedRectangle(cornerRadius: SURadius.lg, style: .continuous))
+                    .padding(.horizontal, SUSpace.lg)
 
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: SUSpace.sm) {
                     Text("Note")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal)
+                        .suLabel()
+                        .foregroundStyle(Color.suInkTertiary)
                     TextField("Optional", text: $noteDraft, axis: .vertical)
+                        .suBody()
+                        .foregroundStyle(Color.suInkPrimary)
                         .lineLimit(2...5)
-                        .padding(.horizontal)
                         .onChange(of: noteDraft) { _, new in
                             ref.note = new.isEmpty ? nil : new
                             try? modelContext.save()
                         }
                 }
+                .padding(.horizontal, SUSpace.lg)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text("Added")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .suLabel()
+                        .foregroundStyle(Color.suInkTertiary)
                     Text(ref.createdAt.formatted(date: .abbreviated, time: .shortened))
-                        .font(.body)
+                        .suBody()
+                        .foregroundStyle(Color.suInkPrimary)
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, SUSpace.lg)
+
+                Color.clear.frame(height: 100)
             }
+            .padding(.top, SUSpace.md)
         }
+        .background(Color.suCanvas.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             Menu {
@@ -55,6 +63,7 @@ struct ReferenceDetailView: View {
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
+                    .foregroundStyle(Color.suInkPrimary)
             }
         }
         .confirmationDialog(

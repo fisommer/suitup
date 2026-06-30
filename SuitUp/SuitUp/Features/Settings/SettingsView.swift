@@ -18,72 +18,116 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    if keyExists {
-                        Label("Key stored in Keychain", systemImage: "checkmark.seal.fill")
-                            .foregroundStyle(.green)
-                        Button("Replace key") { keyDraft = "" }
-                        Button("Delete key", role: .destructive) {
-                            KeychainStore.delete()
-                            keyExists = false
-                        }
-                    } else {
-                        SecureField("sk-ant-...", text: $keyDraft)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                        Button("Save") {
-                            guard !keyDraft.isEmpty else { return }
-                            KeychainStore.set(keyDraft)
-                            keyDraft = ""
-                            keyExists = true
-                            showSavedToast = true
-                        }
-                        .disabled(keyDraft.isEmpty)
-                    }
-                } header: {
-                    Text("Anthropic API key")
-                } footer: {
-                    Text("Used for auto-tagging, styling, and recreating outfits. Get one at console.anthropic.com.")
-                }
+            ZStack {
+                Color.suCanvas.ignoresSafeArea()
 
-                Section {
-                    Button {
-                        runExport()
-                    } label: {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: SUSpace.xl) {
                         HStack {
-                            Label("Export all data", systemImage: "square.and.arrow.up")
+                            Text("Settings")
+                                .suTitle()
+                                .foregroundStyle(Color.suInkPrimary)
                             Spacer()
-                            if isExporting {
-                                ProgressView().controlSize(.small)
-                            }
+                            Button("Done") { dismiss() }
+                                .font(.custom("Inter Variable", size: 14).weight(.medium))
+                                .foregroundStyle(Color.suInkSecondary)
                         }
-                    }
-                    .disabled(isExporting)
+                        .padding(.horizontal, SUSpace.lg)
+                        .padding(.top, SUSpace.md)
 
-                    Button(role: .destructive) {
-                        showClearConfirm = true
-                    } label: {
-                        Label("Clear all data", systemImage: "trash")
-                    }
-                } header: {
-                    Text("Data")
-                } footer: {
-                    Text("Export is a JSON snapshot — image paths included, image files are not. Clearing removes every item, outfit, reference, and image file. Your API key is preserved.")
-                }
+                        // API key section
+                        VStack(alignment: .leading, spacing: SUSpace.md) {
+                            SUSectionHeader(title: "Anthropic API key")
+                                .padding(.horizontal, SUSpace.lg)
 
-                Section("About") {
-                    LabeledContent("Version", value: Bundle.main.shortVersion)
-                    LabeledContent("Build", value: Bundle.main.buildNumber)
+                            VStack(alignment: .leading, spacing: SUSpace.md) {
+                                if keyExists {
+                                    SUBanner("Key stored in Keychain", style: .success)
+                                    HStack(spacing: SUSpace.sm) {
+                                        SUButton("Replace key", style: .secondary, fullWidth: true) {
+                                            keyDraft = ""
+                                            // Force re-entry by clearing existence; user will save new key
+                                            KeychainStore.delete()
+                                            keyExists = false
+                                        }
+                                        SUButton("Delete", style: .destructive, fullWidth: true) {
+                                            KeychainStore.delete()
+                                            keyExists = false
+                                        }
+                                    }
+                                } else {
+                                    SUTextField(
+                                        label: "API Key",
+                                        text: $keyDraft,
+                                        placeholder: "sk-ant-...",
+                                        isSecure: true,
+                                        autocapitalization: .never,
+                                        autocorrect: false
+                                    )
+                                    SUButton("Save key") {
+                                        guard !keyDraft.isEmpty else { return }
+                                        KeychainStore.set(keyDraft)
+                                        keyDraft = ""
+                                        keyExists = true
+                                        showSavedToast = true
+                                    }
+                                }
+                                Text("Used for auto-tagging, styling, and recreating outfits. Get one at console.anthropic.com.")
+                                    .suCaption()
+                                    .foregroundStyle(Color.suInkTertiary)
+                            }
+                            .padding(.horizontal, SUSpace.lg)
+                        }
+
+                        // Data section
+                        VStack(alignment: .leading, spacing: SUSpace.md) {
+                            SUSectionHeader(title: "Data")
+                                .padding(.horizontal, SUSpace.lg)
+
+                            VStack(spacing: SUSpace.sm) {
+                                SUButton(
+                                    isExporting ? "Exporting…" : "Export all data",
+                                    style: .secondary,
+                                    icon: "square.and.arrow.up",
+                                    isLoading: isExporting
+                                ) { runExport() }
+
+                                SUButton("Clear all data", style: .destructive, icon: "trash") {
+                                    showClearConfirm = true
+                                }
+                            }
+                            .padding(.horizontal, SUSpace.lg)
+
+                            Text("Export is a JSON snapshot — image paths included, image files are not. Clearing removes every item, outfit, reference, and image file. Your API key is preserved.")
+                                .suCaption()
+                                .foregroundStyle(Color.suInkTertiary)
+                                .padding(.horizontal, SUSpace.lg)
+                        }
+
+                        // About section
+                        VStack(alignment: .leading, spacing: SUSpace.md) {
+                            SUSectionHeader(title: "About")
+                                .padding(.horizontal, SUSpace.lg)
+
+                            VStack(spacing: 0) {
+                                aboutRow(label: "Version", value: Bundle.main.shortVersion)
+                                Divider().background(Color.suBorder)
+                                aboutRow(label: "Build", value: Bundle.main.buildNumber)
+                            }
+                            .background(Color.suSurface)
+                            .clipShape(RoundedRectangle(cornerRadius: SURadius.md, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: SURadius.md, style: .continuous)
+                                    .strokeBorder(Color.suBorder, lineWidth: 1)
+                            )
+                            .padding(.horizontal, SUSpace.lg)
+                        }
+
+                        Color.clear.frame(height: 40)
+                    }
                 }
             }
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .onAppear { keyExists = KeychainStore.hasKey }
             .alert("Saved", isPresented: $showSavedToast) {
                 Button("OK", role: .cancel) {}
@@ -103,7 +147,6 @@ struct SettingsView: View {
                 Text(dataError ?? "")
             }
             .sheet(isPresented: $showShareSheet, onDismiss: {
-                // Clean up the temp export file once the share sheet closes.
                 if let exportURL { try? FileManager.default.removeItem(at: exportURL) }
                 exportURL = nil
             }) {
@@ -112,6 +155,20 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private func aboutRow(label: String, value: String) -> some View {
+        HStack {
+            Text(label)
+                .suBody()
+                .foregroundStyle(Color.suInkPrimary)
+            Spacer()
+            Text(value)
+                .suBody()
+                .foregroundStyle(Color.suInkTertiary)
+        }
+        .padding(.horizontal, SUSpace.md)
+        .padding(.vertical, 14)
     }
 
     // MARK: - Data actions

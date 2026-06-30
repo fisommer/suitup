@@ -16,68 +16,67 @@ struct OutfitDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: SUSpace.lg) {
                 StoredImage(relativePath: outfit.coverImagePath, contentMode: .fit)
                     .frame(maxWidth: .infinity)
                     .frame(maxHeight: 500)
-                    .background(Color(.secondarySystemBackground))
+                    .background(Color.suSurfaceMuted)
+                    .clipShape(RoundedRectangle(cornerRadius: SURadius.lg, style: .continuous))
+                    .padding(.horizontal, SUSpace.lg)
 
                 VStack(alignment: .leading, spacing: 4) {
                     TextField("Name", text: $outfit.name)
-                        .font(.title2.bold())
+                        .suTitle()
+                        .foregroundStyle(Color.suInkPrimary)
                         .onChange(of: outfit.name) { _, _ in try? modelContext.save() }
                     if let rationale = outfit.rationale, !rationale.isEmpty {
                         Text(rationale)
-                            .font(.body)
-                            .foregroundStyle(.secondary)
-                            .padding(.top, 4)
+                            .suCaption()
+                            .foregroundStyle(Color.suInkSecondary)
                     }
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, SUSpace.lg)
 
-                Button {
+                SUButton(
+                    loggedWearAt == nil ? "Wore today" : "Logged ✓",
+                    style: loggedWearAt == nil ? .secondary : .disabled,
+                    icon: "checkmark.circle"
+                ) {
                     let event = WearEvent(outfitId: outfit.id)
                     modelContext.insert(event)
                     try? modelContext.save()
                     loggedWearAt = Date()
-                } label: {
-                    Label(loggedWearAt == nil ? "Wore today" : "Logged ✓", systemImage: "checkmark.circle")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
                 }
-                .buttonStyle(.bordered)
-                .padding(.horizontal)
-                .disabled(loggedWearAt != nil)
+                .padding(.horizontal, SUSpace.lg)
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Items")
-                        .font(.headline)
-                        .padding(.horizontal)
-                    ForEach(items) { item in
-                        NavigationLink(value: item) {
-                            HStack(spacing: 12) {
-                                StoredImage(relativePath: item.thumbnailPath, contentMode: .fit)
-                                    .frame(width: 60, height: 75)
-                                    .background(Color(.tertiarySystemBackground))
-                                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                                VStack(alignment: .leading) {
-                                    Text(item.name)
-                                    Text(item.subcategory.isEmpty ? item.category.displayName : item.subcategory)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: SUSpace.md) {
+                    SUSectionHeader(title: "Items", count: items.count)
+                        .padding(.horizontal, SUSpace.lg)
+
+                    VStack(spacing: SUSpace.sm) {
+                        ForEach(items) { item in
+                            NavigationLink(value: item) {
+                                SUItemCard(
+                                    imagePath: item.thumbnailPath,
+                                    title: item.name,
+                                    subtitle: item.subcategory.isEmpty ? item.category.displayName : item.subcategory
+                                ) {
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 12, weight: .light))
+                                        .foregroundStyle(Color.suInkTertiary)
                                 }
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .foregroundStyle(.tertiary)
                             }
-                            .padding(.horizontal)
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
+                    .padding(.horizontal, SUSpace.lg)
                 }
+
+                Color.clear.frame(height: 100)
             }
-            .padding(.vertical)
+            .padding(.top, SUSpace.md)
         }
+        .background(Color.suCanvas.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             Menu {
@@ -88,6 +87,7 @@ struct OutfitDetailView: View {
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
+                    .foregroundStyle(Color.suInkPrimary)
             }
         }
         .confirmationDialog(

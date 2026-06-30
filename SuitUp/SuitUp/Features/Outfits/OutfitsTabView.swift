@@ -6,58 +6,71 @@ struct OutfitsTabView: View {
     @State private var showingBuilder = false
 
     private let cols = [
-        GridItem(.flexible(), spacing: 10),
-        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: SUSpace.md),
+        GridItem(.flexible(), spacing: SUSpace.md),
     ]
 
     var body: some View {
         NavigationStack {
-            Group {
-                if outfits.isEmpty {
-                    ContentUnavailableView(
-                        "No saved outfits yet",
-                        systemImage: "square.stack",
-                        description: Text("Save AI suggestions from \"Style this piece\", or build your own with the + button.")
-                    )
-                } else {
-                    ScrollView {
-                        LazyVGrid(columns: cols, spacing: 12) {
-                            ForEach(outfits) { outfit in
-                                NavigationLink(value: outfit) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        StoredImage(relativePath: outfit.coverImagePath, contentMode: .fit)
-                                            .aspectRatio(4.0/5.0, contentMode: .fit)
-                                            .background(Color(.secondarySystemBackground))
-                                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                                        Text(outfit.name)
-                                            .font(.caption)
-                                            .lineLimit(1)
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                    }
-                                }
-                                .buttonStyle(.plain)
+            ZStack {
+                Color.suCanvas.ignoresSafeArea()
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        headerRow
+                            .padding(.horizontal, SUSpace.lg)
+                            .padding(.top, SUSpace.md)
+                            .padding(.bottom, SUSpace.lg)
+
+                        if outfits.isEmpty {
+                            VStack {
+                                Spacer(minLength: 40)
+                                SUEmptyState(
+                                    icon: "square.stack",
+                                    title: "No saved outfits yet",
+                                    message: "Save AI suggestions from \"Style this piece\", or build your own with the + button.",
+                                    actionTitle: "Build an outfit",
+                                    action: { showingBuilder = true }
+                                )
+                                Spacer(minLength: 40)
                             }
+                            .frame(maxWidth: .infinity)
+                        } else {
+                            LazyVGrid(columns: cols, spacing: SUSpace.md) {
+                                ForEach(outfits) { outfit in
+                                    NavigationLink(value: outfit) {
+                                        SUOutfitCard(
+                                            imagePath: outfit.coverImagePath,
+                                            title: outfit.name,
+                                            subtitle: "\(outfit.itemIds.count) piece\(outfit.itemIds.count == 1 ? "" : "s")"
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.horizontal, SUSpace.lg)
                         }
-                        .padding()
-                    }
-                    .navigationDestination(for: Outfit.self) { outfit in
-                        OutfitDetailView(outfit: outfit)
+
+                        Color.clear.frame(height: 100)
                     }
                 }
-            }
-            .navigationTitle("Outfits")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingBuilder = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
+                .navigationDestination(for: Outfit.self) { outfit in
+                    OutfitDetailView(outfit: outfit)
                 }
             }
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showingBuilder) {
                 OutfitBuilderView()
             }
+        }
+    }
+
+    private var headerRow: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("Outfits")
+                .suTitle()
+                .foregroundStyle(Color.suInkPrimary)
+            Spacer()
         }
     }
 }

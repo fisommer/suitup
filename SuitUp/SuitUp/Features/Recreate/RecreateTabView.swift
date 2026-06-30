@@ -10,42 +10,93 @@ struct RecreateTabView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    Button { showingAdd = true } label: { Label("New recreate", systemImage: "plus") }
-                }
-                if !wanted.isEmpty {
-                    Section("Wishlist") {
-                        ForEach(wanted) { w in
-                            VStack(alignment: .leading) {
-                                Text(w.pieceDescription)
-                                Text("\(w.category.displayName) · \(w.colors.joined(separator: ", "))").font(.caption).foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-                Section("History") {
-                    if attempts.isEmpty {
-                        Text("No recreate attempts yet.").foregroundStyle(.secondary)
-                    } else {
-                        ForEach(attempts) { a in
-                            NavigationLink(value: a) {
-                                HStack {
-                                    StoredImage(relativePath: a.sourceImagePath).frame(width: 60, height: 75)
-                                    VStack(alignment: .leading) {
-                                        Text("\(a.recreatableCount) of \(a.totalPieceCount) recreatable")
-                                        Text(a.createdAt.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+            ZStack {
+                Color.suCanvas.ignoresSafeArea()
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: SUSpace.xl) {
+                        headerRow
+                            .padding(.horizontal, SUSpace.lg)
+                            .padding(.top, SUSpace.md)
+
+                        SUButton("New recreate", icon: "plus") { showingAdd = true }
+                            .padding(.horizontal, SUSpace.lg)
+
+                        if !wanted.isEmpty {
+                            VStack(alignment: .leading, spacing: SUSpace.md) {
+                                SUSectionHeader(title: "Wishlist", count: wanted.count)
+                                    .padding(.horizontal, SUSpace.lg)
+                                VStack(spacing: SUSpace.sm) {
+                                    ForEach(wanted) { w in
+                                        wishlistRow(w)
                                     }
                                 }
+                                .padding(.horizontal, SUSpace.lg)
                             }
                         }
+
+                        VStack(alignment: .leading, spacing: SUSpace.md) {
+                            SUSectionHeader(title: "History", count: attempts.isEmpty ? nil : attempts.count)
+                                .padding(.horizontal, SUSpace.lg)
+                            if attempts.isEmpty {
+                                Text("No recreate attempts yet.")
+                                    .suBody()
+                                    .foregroundStyle(Color.suInkTertiary)
+                                    .padding(.horizontal, SUSpace.lg)
+                            } else {
+                                VStack(spacing: SUSpace.sm) {
+                                    ForEach(attempts) { a in
+                                        NavigationLink(value: a) {
+                                            SUItemCard(
+                                                imagePath: a.sourceImagePath,
+                                                title: a.name ?? "Recreate attempt",
+                                                subtitle: "\(a.recreatableCount) of \(a.totalPieceCount) recreatable · \(a.createdAt.formatted(date: .abbreviated, time: .omitted))"
+                                            )
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                                .padding(.horizontal, SUSpace.lg)
+                            }
+                        }
+
+                        Color.clear.frame(height: 100)
                     }
                 }
+                .navigationDestination(for: RecreateAttempt.self) { RecreateResultView(attempt: $0) }
             }
-            .navigationTitle("Recreate")
-            .navigationDestination(for: RecreateAttempt.self) { RecreateResultView(attempt: $0) }
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showingAdd) { NewRecreateSheet() }
         }
+    }
+
+    private var headerRow: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("Recreate")
+                .suTitle()
+                .foregroundStyle(Color.suInkPrimary)
+            Spacer()
+        }
+    }
+
+    private func wishlistRow(_ w: WantedPiece) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(w.pieceDescription)
+                .suBody()
+                .foregroundStyle(Color.suInkPrimary)
+                .lineLimit(2)
+            Text("\(w.category.displayName) · \(w.colors.joined(separator: ", "))")
+                .suCaption()
+                .foregroundStyle(Color.suInkTertiary)
+        }
+        .padding(SUSpace.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.suSurface)
+        .clipShape(RoundedRectangle(cornerRadius: SURadius.md, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: SURadius.md, style: .continuous)
+                .strokeBorder(Color.suBorder, lineWidth: 1)
+        )
     }
 }
 
