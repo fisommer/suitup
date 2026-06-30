@@ -15,6 +15,7 @@ struct AddReferenceSheet: View {
     @State private var isSaving: Bool = false
     @State private var isLoadingBatch: Bool = false
     @State private var batchProgress: (current: Int, total: Int)?
+    @State private var presentationDetent: PresentationDetent = .medium
 
     var body: some View {
         NavigationStack {
@@ -120,7 +121,7 @@ struct AddReferenceSheet: View {
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
-            .presentationDetents([.medium, .large])
+            .presentationDetents([.medium, .large], selection: $presentationDetent)
             .presentationDragIndicator(.visible)
             .overlay {
                 if isLoadingBatch {
@@ -137,6 +138,8 @@ struct AddReferenceSheet: View {
                             await MainActor.run {
                                 preview = img
                                 libItems = []
+                                // Expand to full height so the user can see the preview + note + save button.
+                                withAnimation(SUMotion.standard) { presentationDetent = .large }
                             }
                         }
                     } else {
@@ -148,6 +151,7 @@ struct AddReferenceSheet: View {
             .onAppear {
                 if preview == nil, let preloadedImage {
                     preview = preloadedImage
+                    presentationDetent = .large
                 }
             }
         }
@@ -168,6 +172,7 @@ struct AddReferenceSheet: View {
             )
             modelContext.insert(ref)
             try? modelContext.save()
+            AppEvents.shared.didSaveItem(id: id, name: "reference")
             dismiss()
         } catch {
             print("[AddReference] Save failed: \(error)")
@@ -180,6 +185,7 @@ struct AddReferenceSheet: View {
         isLoadingBatch = true
         batchProgress = (current: 0, total: items.count)
 
+        var savedCount = 0
         for (idx, item) in items.enumerated() {
             if let data = try? await item.loadTransferable(type: Data.self),
                let img = UIImage(data: data) {
@@ -193,6 +199,7 @@ struct AddReferenceSheet: View {
                         source: .library
                     )
                     modelContext.insert(ref)
+                    savedCount += 1
                 }
             }
             batchProgress = (current: idx + 1, total: items.count)
@@ -201,6 +208,9 @@ struct AddReferenceSheet: View {
         isLoadingBatch = false
         batchProgress = nil
         libItems = []
+        if savedCount > 0 {
+            AppEvents.shared.didSaveItem(id: UUID(), name: "\(savedCount) reference\(savedCount == 1 ? "" : "s")")
+        }
         dismiss()
     }
 }

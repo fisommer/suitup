@@ -5,6 +5,7 @@ struct ReferencesTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \ReferenceLook.createdAt, order: .reverse) private var refs: [ReferenceLook]
     @State private var showingAdd = false
+    @StateObject private var events = AppEvents.shared
 
     /// Pinterest-style alternating split: first ref → left, second → right, alternating.
     private var leftColumn: [ReferenceLook] {
@@ -63,7 +64,14 @@ struct ReferencesTabView: View {
                             .opacity(0.92)
                             .background(.ultraThinMaterial)
                     )
+
+                if events.showSavedToast {
+                    SUToast(message: "Saved \(events.lastSavedItemName ?? "")")
+                        .padding(.top, headerHeight + SUSpace.sm)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
             }
+            .animation(SUMotion.standard, value: events.showSavedToast)
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showingAdd) {
                 AddReferenceSheet()

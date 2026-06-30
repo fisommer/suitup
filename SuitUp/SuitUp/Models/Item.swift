@@ -57,6 +57,8 @@ final class Item {
     var price: Decimal?
     var purchasedFrom: String?
     var notes: String?
+    /// Heart toggle. Loved items sort first in closet rails ahead of date-added.
+    var isLoved: Bool = false
     var createdAt: Date
     var updatedAt: Date
 
@@ -83,7 +85,8 @@ final class Item {
         purchaseDate: Date? = nil,
         price: Decimal? = nil,
         purchasedFrom: String? = nil,
-        notes: String? = nil
+        notes: String? = nil,
+        isLoved: Bool = false
     ) {
         let now = Date()
         self.id = id
@@ -109,6 +112,7 @@ final class Item {
         self.price = price
         self.purchasedFrom = purchasedFrom
         self.notes = notes
+        self.isLoved = isLoved
         self.createdAt = now
         self.updatedAt = now
     }

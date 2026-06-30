@@ -145,11 +145,14 @@ struct ItemConfirmView: View {
 
             floatingSaveBar
         }
+            .background(Color.suCanvas.ignoresSafeArea())
+            .scrollContentBackground(.hidden)
             .navigationTitle("Confirm")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
+                        .foregroundStyle(Color.suInkSecondary)
                 }
             }
             .alert(
@@ -221,22 +224,15 @@ struct ItemConfirmView: View {
 
     private var floatingSaveBar: some View {
         VStack(spacing: 0) {
-            Divider()
-            Button {
+            Divider().background(Color.suBorder)
+            SUButton("Save to closet") {
                 save()
-            } label: {
-                Text("Save to closet")
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .padding(.horizontal, 16)
-            .padding(.top, 10)
-            .padding(.bottom, 8)
+            .padding(.horizontal, SUSpace.lg)
+            .padding(.top, SUSpace.sm)
+            .padding(.bottom, SUSpace.xs)
         }
-        .background(.regularMaterial)
+        .background(Color.suCanvas.opacity(0.92).background(.ultraThinMaterial))
     }
 
     /// Run AutoTagger over the current image and merge results into the draft,

@@ -20,6 +20,23 @@ enum SharePayloadKind {
     case none
 }
 
+// Palette mirrors SuitUp/DesignSystem/Theme.swift — duplicated here because the
+// share extension target doesn't have access to the design system files.
+private extension Color {
+    static let suxCanvas        = Color(red: 0.984, green: 0.973, blue: 0.949)  // #FBF8F2
+    static let suxSurface       = Color(red: 1.000, green: 1.000, blue: 1.000)
+    static let suxSurfaceMuted  = Color(red: 0.957, green: 0.941, blue: 0.910)  // #F4F0E8
+    static let suxBorder        = Color(red: 0.910, green: 0.890, blue: 0.855)  // #E8E3DA
+    static let suxInkPrimary    = Color(red: 0.102, green: 0.078, blue: 0.063)  // #1A1410
+    static let suxInkSecondary  = Color(red: 0.420, green: 0.388, blue: 0.345)  // #6B6358
+    static let suxInkTertiary   = Color(red: 0.541, green: 0.514, blue: 0.471)  // #8A8378
+    static let suxAccent        = Color(red: 1.000, green: 0.796, blue: 0.455)  // #FFCB74
+    static let suxAccentDeep    = Color(red: 0.722, green: 0.533, blue: 0.220)  // #B88838
+    static let suxAccentSurface = Color(red: 1.000, green: 0.953, blue: 0.863)  // #FFF3DC
+    static let suxSuccess       = Color(red: 0.357, green: 0.651, blue: 0.471)
+    static let suxDanger        = Color(red: 0.780, green: 0.420, blue: 0.361)
+}
+
 struct ShareRouterView: View {
     let inputItems: [NSExtensionItem]
     let onDone: () -> Void
@@ -32,54 +49,61 @@ struct ShareRouterView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 16) {
-                Text("Add to SuitUp")
-                    .font(.title3.bold())
-                    .padding(.top, 8)
+            ZStack {
+                Color.suxCanvas.ignoresSafeArea()
 
-                Group {
-                    if didHandOff {
-                        handOffView
-                    } else {
-                        switch kind {
-                        case .unknown:
-                            ProgressView("Detecting…")
-                                .padding(.vertical, 24)
-                        case .none:
-                            Text("Nothing shareable found.")
-                                .foregroundStyle(.secondary)
-                                .padding(.vertical, 24)
-                        case .image:
-                            actionButton("Save as reference", systemImage: "bookmark", action: "reference")
-                            actionButton("Recreate this look", systemImage: "wand.and.stars", action: "recreate")
-                        case .url:
-                            actionButton("Add to closet (product link)", systemImage: "link", action: "closet-url")
-                        case .mixed:
-                            actionButton("Save as reference", systemImage: "bookmark", action: "reference")
-                            actionButton("Recreate this look", systemImage: "wand.and.stars", action: "recreate")
-                            actionButton("Add to closet (product link)", systemImage: "link", action: "closet-url")
+                VStack(spacing: 16) {
+                    Text("Add to SuitUp")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(Color.suxInkPrimary)
+                        .padding(.top, 12)
+
+                    Group {
+                        if didHandOff {
+                            handOffView
+                        } else {
+                            switch kind {
+                            case .unknown:
+                                ProgressView()
+                                    .tint(Color.suxAccentDeep)
+                                    .padding(.vertical, 24)
+                            case .none:
+                                Text("Nothing shareable found.")
+                                    .foregroundStyle(Color.suxInkSecondary)
+                                    .padding(.vertical, 24)
+                            case .image:
+                                actionButton("Save as reference", systemImage: "bookmark", action: "reference")
+                                actionButton("Recreate this look", systemImage: "wand.and.stars", action: "recreate")
+                            case .url:
+                                actionButton("Add to closet (product link)", systemImage: "link", action: "closet-url")
+                            case .mixed:
+                                actionButton("Save as reference", systemImage: "bookmark", action: "reference")
+                                actionButton("Recreate this look", systemImage: "wand.and.stars", action: "recreate")
+                                actionButton("Add to closet (product link)", systemImage: "link", action: "closet-url")
+                            }
                         }
                     }
-                }
-                .disabled(isWriting)
+                    .disabled(isWriting)
 
-                if let errorMessage {
-                    Text(errorMessage)
-                        .font(.footnote)
-                        .foregroundStyle(.red)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                }
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(Color.suxDanger)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
 
-                Spacer()
+                    Spacer()
 
-                if !didHandOff {
-                    Button("Cancel", role: .cancel) { onCancel() }
-                        .padding(.bottom, 12)
+                    if !didHandOff {
+                        Button("Cancel", role: .cancel) { onCancel() }
+                            .foregroundStyle(Color.suxInkSecondary)
+                            .padding(.bottom, 12)
+                    }
                 }
+                .padding(.horizontal)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .padding(.horizontal)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .task { await detectKind() }
         }
     }
@@ -88,12 +112,13 @@ struct ShareRouterView: View {
         VStack(spacing: 14) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 44))
-                .foregroundStyle(.green)
+                .foregroundStyle(Color.suxSuccess)
             Text("Saved")
-                .font(.title3.bold())
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(Color.suxInkPrimary)
             Text("Open SuitUp to finish →")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.suxInkSecondary)
         }
         .padding(.vertical, 24)
         .transition(.opacity)
@@ -104,19 +129,36 @@ struct ShareRouterView: View {
         Button {
             Task { await route(action: action) }
         } label: {
-            HStack {
-                Label(title, systemImage: systemImage)
-                    .font(.body.weight(.semibold))
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(Color.suxAccentSurface)
+                        .frame(width: 36, height: 36)
+                    Image(systemName: systemImage)
+                        .font(.system(size: 15, weight: .light))
+                        .foregroundStyle(Color.suxAccentDeep)
+                }
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color.suxInkPrimary)
                 Spacer()
                 if isWriting {
-                    ProgressView().controlSize(.small)
+                    ProgressView().controlSize(.small).tint(Color.suxInkTertiary)
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .light))
+                        .foregroundStyle(Color.suxInkTertiary)
                 }
             }
             .padding(.vertical, 14)
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity)
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .background(Color.suxSurface)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(Color.suxBorder, lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
     }

@@ -7,9 +7,11 @@ struct RecreateTabView: View {
     @Query(sort: \RecreateAttempt.createdAt, order: .reverse) private var attempts: [RecreateAttempt]
     @Query(sort: \WantedPiece.createdAt, order: .reverse) private var wanted: [WantedPiece]
     @State private var showingAdd = false
+    @State private var navPath = NavigationPath()
+    @StateObject private var events = AppEvents.shared
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navPath) {
             ZStack(alignment: .top) {
                 Color.suCanvas.ignoresSafeArea()
 
@@ -70,9 +72,25 @@ struct RecreateTabView: View {
                             .opacity(0.92)
                             .background(.ultraThinMaterial)
                     )
+
+                if events.showSavedToast {
+                    SUToast(message: "Saved \(events.lastSavedItemName ?? "")")
+                        .padding(.top, headerHeight + SUSpace.sm)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
             }
+            .animation(SUMotion.standard, value: events.showSavedToast)
             .toolbar(.hidden, for: .navigationBar)
-            .sheet(isPresented: $showingAdd) { NewRecreateSheet() }
+            .sheet(isPresented: $showingAdd) {
+                NewRecreateSheet(onCompleted: { attempt in
+                    showingAdd = false
+                    // Push the just-created attempt onto the nav stack so the user lands on
+                    // the result detail directly instead of the overview.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        navPath.append(attempt)
+                    }
+                })
+            }
         }
     }
 
@@ -113,6 +131,9 @@ struct NewRecreateSheet: View {
     var preloadedImage: UIImage? = nil
     /// Optional name prefill (e.g. inferred from a shared post). Editable.
     var prefilledName: String? = nil
+    /// Called when the analyze step succeeds and the attempt is saved. Receives the new attempt
+    /// so the presenter can navigate directly to its detail view.
+    var onCompleted: ((RecreateAttempt) -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -123,6 +144,7 @@ struct NewRecreateSheet: View {
     @State private var name: String = ""
     @State private var phase: Phase = .input
     @State private var errorMessage: String?
+    @State private var presentationDetent: PresentationDetent = .medium
 
     enum Phase { case input, analyzing }
 
@@ -137,17 +159,24 @@ struct NewRecreateSheet: View {
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
+            .presentationDetents([.medium, .large], selection: $presentationDetent)
+            .presentationDragIndicator(.visible)
             .onChange(of: libItem) { _, new in
                 guard let new else { return }
                 Task {
                     if let data = try? await new.loadTransferable(type: Data.self), let img = UIImage(data: data) {
-                        await MainActor.run { sourceImage = img }
+                        await MainActor.run {
+                            sourceImage = img
+                            // Once an image is picked, expand the sheet so the user can see it + the analyze button.
+                            withAnimation(SUMotion.standard) { presentationDetent = .large }
+                        }
                     }
                 }
             }
             .onAppear {
                 if sourceImage == nil, let preloadedImage {
                     sourceImage = preloadedImage
+                    presentationDetent = .large
                 }
                 if name.isEmpty, let prefilledName, !prefilledName.isEmpty {
                     name = prefilledName
@@ -262,19 +291,31 @@ struct NewRecreateSheet: View {
         phase = .analyzing
         do {
             let result = try await RecreateService().analyze(image: sourceImage, closet: closet, references: references)
+
+            // Use the user-typed name if present, otherwise the AI's suggestion, otherwise nil.
+            let typed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let finalName: String? = !typed.isEmpty
+                ? typed
+                : (result.suggestedName.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .flatMap { $0.isEmpty ? nil : $0 })
+
             let id = UUID()
             let sourcePath = try ImageStore.save(sourceImage, folder: .recreate, name: "\(id)", maxDimension: 1024)
-            let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
             let attempt = try RecreateAttempt(
                 id: id,
-                name: trimmed.isEmpty ? nil : trimmed,
+                name: finalName,
                 sourceImagePath: sourcePath,
                 parsedPieces: result.parsedPieces,
                 matches: result.matches
             )
             modelContext.insert(attempt)
             try? modelContext.save()
-            dismiss()
+            AppEvents.shared.didSaveItem(id: id, name: finalName ?? "Recreate attempt")
+            if let onCompleted {
+                onCompleted(attempt)
+            } else {
+                dismiss()
+            }
         } catch {
             errorMessage = error.localizedDescription
             phase = .input
@@ -286,7 +327,7 @@ struct RecreateResultView: View {
     @Bindable var attempt: RecreateAttempt
     @Query private var allItems: [Item]
     @Environment(\.modelContext) private var modelContext
-    @State private var savedReferenceFlash: Bool = false
+    @State private var nameDraft: String = ""
 
     private var itemsById: [UUID: Item] {
         Dictionary(uniqueKeysWithValues: allItems.map { ($0.id, $0) })
@@ -295,95 +336,240 @@ struct RecreateResultView: View {
     private var outfitSaved: Bool { attempt.savedOutfitId != nil }
     private var referenceSaved: Bool { attempt.linkedReferenceLookId != nil }
 
+    private var matchedMatches: [PieceMatch] { attempt.matches.filter { $0.status == .matched } }
+    private var missingMatches: [PieceMatch] { attempt.matches.filter { $0.status == .missing } }
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                StoredImage(relativePath: attempt.sourceImagePath).frame(maxHeight: 400)
+            VStack(alignment: .leading, spacing: SUSpace.lg) {
+                StoredImage(relativePath: attempt.sourceImagePath, contentMode: .fit)
+                    .frame(maxHeight: 380)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.suSurfaceMuted)
+                    .clipShape(RoundedRectangle(cornerRadius: SURadius.lg, style: .continuous))
+                    .padding(.horizontal, SUSpace.lg)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    if let name = attempt.name, !name.isEmpty {
-                        Text(name)
-                            .font(.title3.bold())
+                VStack(alignment: .leading, spacing: SUSpace.sm) {
+                    SUTextField(
+                        label: "Outfit name",
+                        text: $nameDraft,
+                        placeholder: "Tap to name this look",
+                        autocorrect: false
+                    )
+                    .onChange(of: nameDraft) { _, new in
+                        let trimmed = new.trimmingCharacters(in: .whitespacesAndNewlines)
+                        attempt.name = trimmed.isEmpty ? nil : trimmed
+                        try? modelContext.save()
                     }
-                    Text("\(attempt.recreatableCount) of \(attempt.totalPieceCount) pieces recreatable")
-                        .font(.headline)
+                    Text("\(attempt.recreatableCount) of \(attempt.totalPieceCount) pieces matched from your closet.")
+                        .suCaption()
+                        .foregroundStyle(Color.suInkSecondary)
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, SUSpace.lg)
 
-                ForEach(Array(attempt.matches.enumerated()), id: \.offset) { _, match in
-                    matchRow(match, piece: attempt.parsedPieces[safe: match.pieceIndex])
-                        .padding(.horizontal)
+                if !matchedMatches.isEmpty {
+                    VStack(alignment: .leading, spacing: SUSpace.md) {
+                        SUSectionHeader(title: "In your closet", count: matchedMatches.count)
+                            .padding(.horizontal, SUSpace.lg)
+
+                        VStack(spacing: SUSpace.sm) {
+                            ForEach(Array(matchedMatches.enumerated()), id: \.offset) { _, match in
+                                matchedRow(match)
+                            }
+                        }
+                        .padding(.horizontal, SUSpace.lg)
+                    }
                 }
 
-                VStack(spacing: 10) {
-                    Button {
+                if !missingMatches.isEmpty {
+                    VStack(alignment: .leading, spacing: SUSpace.md) {
+                        SUSectionHeader(title: "Missing", count: missingMatches.count)
+                            .padding(.horizontal, SUSpace.lg)
+
+                        VStack(spacing: SUSpace.sm) {
+                            ForEach(Array(missingMatches.enumerated()), id: \.offset) { _, match in
+                                missingRow(match)
+                            }
+                        }
+                        .padding(.horizontal, SUSpace.lg)
+                    }
+                }
+
+                VStack(spacing: SUSpace.sm) {
+                    SUButton(
+                        outfitSaved ? "Saved to Outfits" : "Save matched items as outfit",
+                        style: (attempt.recreatableCount == 0 || outfitSaved) ? .disabled : .primary,
+                        icon: outfitSaved ? "checkmark.circle.fill" : nil
+                    ) {
                         saveMatchedOutfit()
-                    } label: {
-                        HStack(spacing: 6) {
-                            if outfitSaved {
-                                Image(systemName: "checkmark.circle.fill")
-                            }
-                            Text(outfitSaved ? "Saved to Outfits" : "Save matched items as outfit")
-                                .fontWeight(.semibold)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .disabled(attempt.recreatableCount == 0 || outfitSaved)
 
-                    Button {
+                    SUButton(
+                        referenceSaved ? "Saved as reference" : "Save source image as reference",
+                        style: referenceSaved ? .disabled : .secondary,
+                        icon: referenceSaved ? "checkmark.circle.fill" : nil
+                    ) {
                         saveAsReference()
-                    } label: {
-                        HStack(spacing: 6) {
-                            if referenceSaved {
-                                Image(systemName: "checkmark.circle.fill")
-                            }
-                            Text(referenceSaved ? "Saved as reference" : "Save source image as reference")
-                        }
                     }
-                    .disabled(referenceSaved)
                 }
-                .padding(.horizontal)
-                .padding(.top, 8)
+                .padding(.horizontal, SUSpace.lg)
+                .padding(.top, SUSpace.sm)
+
+                Color.clear.frame(height: 100)
             }
+            .padding(.top, SUSpace.md)
         }
-        .navigationTitle("Recreate")
+        .background(Color.suCanvas.ignoresSafeArea())
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            nameDraft = attempt.name ?? ""
+        }
     }
 
-    private func matchRow(_ match: PieceMatch, piece: ParsedPiece?) -> some View {
-        HStack(alignment: .top) {
-            Image(systemName: match.status == .matched ? "checkmark.circle.fill" : "xmark.circle")
-                .foregroundStyle(match.status == .matched ? Color.green : Color.red)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(piece?.description ?? "Piece").font(.body)
-                if match.status == .matched, let id = match.matchedItemId, let item = itemsById[id] {
-                    NavigationLink(value: item) {
-                        HStack {
-                            StoredImage(relativePath: item.thumbnailPath).frame(width: 50, height: 65)
-                            VStack(alignment: .leading) {
-                                Text(item.name).font(.caption)
-                                if let c = match.confidence { Text(c.rawValue).font(.caption2).foregroundStyle(.secondary) }
+    private func matchedRow(_ match: PieceMatch) -> some View {
+        let piece = attempt.parsedPieces[safe: match.pieceIndex]
+        let alternatives = match.matchedItemIds.compactMap { itemsById[$0] }
+
+        return HStack(alignment: .top, spacing: SUSpace.md) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 18, weight: .light))
+                .foregroundStyle(Color.suSuccess)
+                .padding(.top, 2)
+            VStack(alignment: .leading, spacing: SUSpace.sm) {
+                Text(piece?.description ?? "Piece")
+                    .suBody()
+                    .foregroundStyle(Color.suInkPrimary)
+
+                if alternatives.count > 1 {
+                    // Multiple matches — horizontal carousel of alternatives.
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(alternatives.count) closet options")
+                            .suLabel()
+                            .foregroundStyle(Color.suInkTertiary)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: SUSpace.sm) {
+                                ForEach(alternatives) { item in
+                                    NavigationLink(value: item) {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            StoredImage(relativePath: item.thumbnailPath, contentMode: .fill)
+                                                .frame(width: 60, height: 78)
+                                                .background(Color.suSurfaceMuted)
+                                                .clipShape(RoundedRectangle(cornerRadius: SURadius.sm, style: .continuous))
+                                            Text(item.name)
+                                                .font(.custom("Inter Variable", size: 10).weight(.medium))
+                                                .foregroundStyle(Color.suInkPrimary)
+                                                .lineLimit(1)
+                                                .frame(width: 60, alignment: .leading)
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
                         }
                     }
-                } else if match.status == .missing {
-                    HStack {
-                        Text(match.note ?? "Missing from closet").font(.caption).foregroundStyle(.secondary)
-                        Spacer()
-                        if match.wantedPieceId == nil {
-                            Button("Save as want") { saveAsWant(match: match, piece: piece) }.font(.caption)
-                        } else {
-                            Label("Saved", systemImage: "checkmark.circle.fill")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                } else if let item = alternatives.first {
+                    // Single match — full inline row.
+                    NavigationLink(value: item) {
+                        HStack(spacing: SUSpace.sm) {
+                            StoredImage(relativePath: item.thumbnailPath, contentMode: .fill)
+                                .frame(width: 44, height: 56)
+                                .background(Color.suSurfaceMuted)
+                                .clipShape(RoundedRectangle(cornerRadius: SURadius.sm, style: .continuous))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.name)
+                                    .suCaption()
+                                    .foregroundStyle(Color.suInkPrimary)
+                                if let c = match.confidence {
+                                    Text(c.rawValue)
+                                        .suCaption()
+                                        .foregroundStyle(Color.suInkTertiary)
+                                }
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .light))
+                                .foregroundStyle(Color.suInkTertiary)
                         }
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(SUSpace.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.suSurface)
+        .clipShape(RoundedRectangle(cornerRadius: SURadius.md, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: SURadius.md, style: .continuous)
+                .strokeBorder(Color.suBorder, lineWidth: 1)
+        )
+    }
+
+    private func missingRow(_ match: PieceMatch) -> some View {
+        let piece = attempt.parsedPieces[safe: match.pieceIndex]
+
+        return VStack(alignment: .leading, spacing: SUSpace.sm) {
+            HStack(alignment: .top, spacing: SUSpace.md) {
+                Image(systemName: "circle.dashed")
+                    .font(.system(size: 18, weight: .light))
+                    .foregroundStyle(Color.suInkTertiary)
+                    .padding(.top, 2)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(piece?.description ?? "Piece")
+                        .suBody()
+                        .foregroundStyle(Color.suInkPrimary)
+                    if let note = match.note, !note.isEmpty {
+                        Text(note)
+                            .suCaption()
+                            .foregroundStyle(Color.suInkTertiary)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+
+            // Chip-style "Save as want" button — clearly tappable.
+            HStack {
+                Spacer()
+                if match.wantedPieceId == nil {
+                    Button {
+                        saveAsWant(match: match, piece: piece)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "bookmark")
+                                .font(.system(size: 11, weight: .light))
+                            Text("Save as want")
+                                .font(.custom("Inter Variable", size: 12).weight(.semibold))
+                        }
+                        .foregroundStyle(Color.suAccentDeep)
+                        .padding(.horizontal, SUSpace.md)
+                        .padding(.vertical, 6)
+                        .background(Color.suAccentSurface)
+                        .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 11, weight: .light))
+                        Text("Saved to wishlist")
+                            .font(.custom("Inter Variable", size: 12).weight(.medium))
+                    }
+                    .foregroundStyle(Color.suInkTertiary)
+                    .padding(.horizontal, SUSpace.md)
+                    .padding(.vertical, 6)
+                    .background(Color.suSurfaceMuted)
+                    .clipShape(Capsule())
+                }
+            }
+        }
+        .padding(SUSpace.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.suSurface)
+        .clipShape(RoundedRectangle(cornerRadius: SURadius.md, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: SURadius.md, style: .continuous)
+                .strokeBorder(Color.suBorder, lineWidth: 1)
+        )
     }
 
     private func saveAsWant(match: PieceMatch, piece: ParsedPiece?) {

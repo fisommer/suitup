@@ -4,6 +4,7 @@ import SwiftData
 struct ClosetTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Item.createdAt, order: .reverse) private var items: [Item]
+    @Query(sort: \WantedPiece.createdAt, order: .reverse) private var wanted: [WantedPiece]
     @State private var showingSettings = false
     @State private var showingAddSheet = false
     @StateObject private var events = AppEvents.shared
@@ -36,6 +37,11 @@ struct ClosetTabView: View {
                             .frame(maxWidth: .infinity)
                         } else {
                             ClosetRailsView(items: items, highlightedItemId: events.lastSavedItemId)
+
+                            if !wanted.isEmpty {
+                                wishlistRail
+                                    .padding(.top, SUSpace.xl)
+                            }
                             #if DEBUG
                             HStack {
                                 Spacer()
@@ -80,6 +86,52 @@ struct ClosetTabView: View {
     }
 
     private var headerHeight: CGFloat { 80 }
+
+    /// "Wishlist" rail at the bottom of the Closet. Shows wanted pieces (from Recreate
+    /// missing matches). Visually distinct from real items — dashed border, no photo.
+    private var wishlistRail: some View {
+        VStack(alignment: .leading, spacing: SUSpace.md) {
+            SUSectionHeader(title: "Wishlist", count: wanted.count)
+                .padding(.horizontal, SUSpace.lg)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: SUSpace.md) {
+                    ForEach(wanted) { w in
+                        wishlistTile(w)
+                    }
+                }
+                .padding(.horizontal, SUSpace.lg)
+            }
+        }
+    }
+
+    private func wishlistTile(_ w: WantedPiece) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ZStack {
+                RoundedRectangle(cornerRadius: SURadius.md, style: .continuous)
+                    .fill(Color.suSurfaceMuted)
+                    .frame(width: 110, height: 140)
+                Image(systemName: "bookmark")
+                    .font(.system(size: 22, weight: .light))
+                    .foregroundStyle(Color.suInkTertiary)
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: SURadius.md, style: .continuous)
+                    .strokeBorder(Color.suBorder, style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+            )
+
+            Text(w.pieceDescription)
+                .font(.custom("Inter Variable", size: 11).weight(.medium))
+                .foregroundStyle(Color.suInkPrimary)
+                .lineLimit(2)
+                .frame(width: 110, alignment: .leading)
+
+            Text(w.category.displayName)
+                .suCaption()
+                .foregroundStyle(Color.suInkTertiary)
+                .frame(width: 110, alignment: .leading)
+        }
+    }
 
     private var headerRow: some View {
         HStack(alignment: .firstTextBaseline) {

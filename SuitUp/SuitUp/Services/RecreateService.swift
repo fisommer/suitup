@@ -4,6 +4,8 @@ import UIKit
 struct RecreateResult {
     let parsedPieces: [ParsedPiece]
     let matches: [PieceMatch]
+    /// AI-suggested short outfit name (~3-5 words). User can edit before saving.
+    let suggestedName: String?
 }
 
 enum RecreateError: Error, LocalizedError {
@@ -47,6 +49,10 @@ struct RecreateService {
         let schema: [String: Any] = [
             "type": "object",
             "properties": [
+                "suggestedName": [
+                    "type": "string",
+                    "description": "Short, evocative name for the outfit (3-5 words, no quotes). Examples: 'Linen Riviera fit', 'Tailored weekend uniform', 'Cream summer drift'.",
+                ],
                 "parsedPieces": [
                     "type": "array",
                     "items": [
@@ -67,7 +73,11 @@ struct RecreateService {
                         "properties": [
                             "pieceIndex": ["type": "integer"],
                             "status": ["type": "string", "enum": ["matched", "missing"]],
-                            "itemId": ["type": "string"],
+                            "itemIds": [
+                                "type": "array",
+                                "items": ["type": "string"],
+                                "description": "All closet itemIds that match this piece, ordered best→worst. Empty if missing.",
+                            ],
                             "confidence": ["type": "string", "enum": ["veryClose", "close", "loose"]],
                             "note": ["type": "string"],
                         ],
@@ -75,15 +85,16 @@ struct RecreateService {
                     ],
                 ],
             ],
-            "required": ["parsedPieces", "matches"],
+            "required": ["suggestedName", "parsedPieces", "matches"],
         ]
 
         let system = """
         Parse the reference outfit into its primary pieces (top, bottom, outerwear, shoes, hero accessory — max 5).
-        For each piece, either match to an itemId from the CLOSET INVENTORY or mark missing.
+        For each piece, list ALL closet itemIds that could match it, ordered best→worst (typically 1-3). Mark missing only if nothing in the closet works.
         Use ONLY itemIds from the inventory. Never invent.
-        Match confidence: veryClose | close | loose.
-        Include a short note explaining the match or what's missing.
+        Match confidence reflects the best match: veryClose | close | loose.
+        Include a short note explaining the matches or what's missing.
+        Also suggest a short, evocative outfit name (3-5 words, no quotes) that captures the look's character.
         """
 
         let input: [String: Any]
@@ -118,16 +129,33 @@ struct RecreateService {
             guard let idx = m["pieceIndex"] as? Int,
                   let statusStr = m["status"] as? String,
                   let status = MatchStatus(rawValue: statusStr) else { return nil }
-            var matchedId: UUID? = nil
-            if status == .matched, let idStr = m["itemId"] as? String, let id = UUID(uuidString: idStr), snapshotIds.contains(id) {
-                matchedId = id
+
+            // Accept both new `itemIds` array and legacy `itemId` string from the model.
+            var ids: [UUID] = []
+            if let arr = m["itemIds"] as? [String] {
+                ids = arr.compactMap(UUID.init(uuidString:)).filter { snapshotIds.contains($0) }
+            } else if let single = m["itemId"] as? String, let id = UUID(uuidString: single), snapshotIds.contains(id) {
+                ids = [id]
             }
-            // If it was supposed to be matched but invalid, downgrade to missing
-            let effectiveStatus: MatchStatus = (status == .matched && matchedId == nil) ? .missing : status
+
+            // If supposed to be matched but no valid IDs survived, downgrade to missing.
+            let effectiveStatus: MatchStatus = (status == .matched && ids.isEmpty) ? .missing : status
             let confidence = (m["confidence"] as? String).flatMap(MatchConfidence.init(rawValue:))
-            return PieceMatch(pieceIndex: idx, status: effectiveStatus, matchedItemId: matchedId, confidence: confidence, note: m["note"] as? String, wantedPieceId: nil)
+            return PieceMatch(
+                pieceIndex: idx,
+                status: effectiveStatus,
+                matchedItemIds: ids,
+                confidence: confidence,
+                note: m["note"] as? String,
+                wantedPieceId: nil
+            )
         }
 
-        return RecreateResult(parsedPieces: pieces, matches: matches)
+        let suggestedName = (input["suggestedName"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+        let cleanName = suggestedName.flatMap { $0.isEmpty ? nil : $0 }
+
+        return RecreateResult(parsedPieces: pieces, matches: matches, suggestedName: cleanName)
     }
 }

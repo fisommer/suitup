@@ -19,9 +19,22 @@ struct ItemDetailView: View {
                     .padding(.horizontal, SUSpace.lg)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(item.name)
-                        .suTitle()
-                        .foregroundStyle(Color.suInkPrimary)
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(item.name)
+                            .suTitle()
+                            .foregroundStyle(Color.suInkPrimary)
+                        Spacer()
+                        Button {
+                            item.isLoved.toggle()
+                            try? modelContext.save()
+                        } label: {
+                            Image(systemName: item.isLoved ? "heart.fill" : "heart")
+                                .font(.system(size: 22, weight: .light))
+                                .foregroundStyle(item.isLoved ? Color.suAccentDeep : Color.suInkTertiary)
+                                .symbolEffect(.bounce, value: item.isLoved)
+                        }
+                        .buttonStyle(.plain)
+                    }
                     Text(metaLine)
                         .suCaption()
                         .foregroundStyle(Color.suInkSecondary)

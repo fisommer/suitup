@@ -20,18 +20,20 @@ struct StylingView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
+            VStack {
                 switch phase {
                 case .generating: generatingView
                 case .results: resultsView
                 case .error: errorView
                 }
             }
+            .background(Color.suCanvas.ignoresSafeArea())
             .navigationTitle("Style")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
+                        .foregroundStyle(Color.suInkSecondary)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     if phase == .results {
@@ -39,6 +41,7 @@ struct StylingView: View {
                             Task { await regenerate() }
                         } label: {
                             Image(systemName: "arrow.clockwise")
+                                .foregroundStyle(Color.suInkPrimary)
                         }
                     }
                 }
@@ -50,52 +53,54 @@ struct StylingView: View {
     // MARK: - Views
 
     private var generatingView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: SUSpace.md) {
             StoredImage(relativePath: selected.thumbnailPath, contentMode: .fit)
                 .frame(width: 110, height: 140)
-                .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-            ProgressView("Styling…")
+                .background(Color.suSurfaceMuted)
+                .clipShape(RoundedRectangle(cornerRadius: SURadius.md, style: .continuous))
+            ProgressView()
+                .tint(Color.suAccentDeep)
                 .controlSize(.regular)
+            Text("Styling…")
+                .suBody()
+                .foregroundStyle(Color.suInkPrimary)
             Text("Looking at your closet, references, and saved outfits")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .suCaption()
+                .foregroundStyle(Color.suInkTertiary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
+                .padding(.horizontal, SUSpace.xl)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var resultsView: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: SUSpace.xl) {
                 let priorOutfits = savedOutfits.filter { $0.itemIds.contains(selected.id) }
                 if !priorOutfits.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("You've worn this with")
-                            .font(.headline)
-                            .padding(.horizontal)
+                    VStack(alignment: .leading, spacing: SUSpace.md) {
+                        SUSectionHeader(title: "You've worn this with", count: priorOutfits.count)
+                            .padding(.horizontal, SUSpace.lg)
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
+                            HStack(spacing: SUSpace.md) {
                                 ForEach(priorOutfits) { outfit in
                                     NavigationLink(value: outfit) {
                                         StoredImage(relativePath: outfit.coverImagePath, contentMode: .fit)
                                             .frame(width: 130, height: 165)
-                                            .background(Color(.secondarySystemBackground))
-                                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                                            .background(Color.suSurfaceMuted)
+                                            .clipShape(RoundedRectangle(cornerRadius: SURadius.md, style: .continuous))
                                     }
                                     .buttonStyle(.plain)
                                 }
                             }
-                            .padding(.horizontal)
+                            .padding(.horizontal, SUSpace.lg)
                         }
                     }
                 }
 
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("New ideas")
-                        .font(.headline)
-                        .padding(.horizontal)
+                VStack(alignment: .leading, spacing: SUSpace.md) {
+                    SUSectionHeader(title: "New ideas", count: suggestions.count)
+                        .padding(.horizontal, SUSpace.lg)
                     ForEach(suggestions) { suggestion in
                         SuggestionCard(
                             suggestion: suggestion,
@@ -104,11 +109,12 @@ struct StylingView: View {
                         ) {
                             await saveAsOutfit(suggestion)
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, SUSpace.lg)
                     }
                 }
+                Color.clear.frame(height: 100)
             }
-            .padding(.vertical)
+            .padding(.top, SUSpace.md)
         }
         .navigationDestination(for: Outfit.self) { outfit in
             OutfitDetailView(outfit: outfit)
@@ -116,19 +122,20 @@ struct StylingView: View {
     }
 
     private var errorView: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: SUSpace.md) {
             Image(systemName: "exclamationmark.triangle")
-                .font(.largeTitle)
-                .foregroundStyle(.orange)
+                .font(.system(size: 36, weight: .light))
+                .foregroundStyle(Color.suWarning)
             Text(errorMessage ?? "Something went wrong")
+                .suBody()
+                .foregroundStyle(Color.suInkSecondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            Button("Try again") {
+                .padding(.horizontal, SUSpace.lg)
+            SUButton("Try again", fullWidth: false) {
                 Task { await generate() }
             }
-            .buttonStyle(.borderedProminent)
         }
-        .padding()
+        .padding(SUSpace.lg)
     }
 
     // MARK: - Actions
@@ -195,47 +202,53 @@ private struct SuggestionCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 12) {
+        VStack(alignment: .leading, spacing: SUSpace.md) {
+            HStack(alignment: .top, spacing: SUSpace.md) {
                 CollageThumb(items: orderedItems)
                     .frame(width: 130, height: 165)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                VStack(alignment: .leading, spacing: 4) {
+                    .background(Color.suSurfaceMuted)
+                    .clipShape(RoundedRectangle(cornerRadius: SURadius.md, style: .continuous))
+                VStack(alignment: .leading, spacing: SUSpace.xs) {
                     Text(suggestion.name)
-                        .font(.headline)
+                        .suHeadline()
+                        .foregroundStyle(Color.suInkPrimary)
                     Text(suggestion.rationale)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .suCaption()
+                        .foregroundStyle(Color.suInkSecondary)
                         .lineLimit(5)
                 }
             }
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
+                HStack(spacing: SUSpace.sm) {
                     ForEach(orderedItems) { item in
-                        VStack(spacing: 2) {
-                            StoredImage(relativePath: item.thumbnailPath, contentMode: .fit)
+                        VStack(spacing: 4) {
+                            StoredImage(relativePath: item.thumbnailPath, contentMode: .fill)
                                 .frame(width: 50, height: 65)
-                                .background(Color(.tertiarySystemBackground))
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                .background(Color.suSurfaceMuted)
+                                .clipShape(RoundedRectangle(cornerRadius: SURadius.sm, style: .continuous))
                             Text(item.name)
-                                .font(.system(size: 9))
+                                .font(.custom("Inter Variable", size: 10))
+                                .foregroundStyle(Color.suInkTertiary)
                                 .lineLimit(1)
-                                .frame(maxWidth: 50)
+                                .frame(maxWidth: 60)
                         }
                     }
                 }
             }
-            Button {
+            SUButton(
+                isSaved ? "Saved" : "Save outfit",
+                style: isSaved ? .disabled : .secondary,
+                icon: isSaved ? "bookmark.fill" : "bookmark"
+            ) {
                 Task { await onSave() }
-            } label: {
-                Label(isSaved ? "Saved" : "Save outfit", systemImage: isSaved ? "bookmark.fill" : "bookmark")
-                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.bordered)
-            .disabled(isSaved)
         }
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(SUSpace.md)
+        .background(Color.suSurface)
+        .clipShape(RoundedRectangle(cornerRadius: SURadius.md, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: SURadius.md, style: .continuous)
+                .strokeBorder(Color.suBorder, lineWidth: 1)
+        )
     }
 }

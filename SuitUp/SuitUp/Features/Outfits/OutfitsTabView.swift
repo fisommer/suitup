@@ -4,6 +4,7 @@ import SwiftData
 struct OutfitsTabView: View {
     @Query(sort: \Outfit.createdAt, order: .reverse) private var outfits: [Outfit]
     @State private var showingBuilder = false
+    @StateObject private var events = AppEvents.shared
 
     private let cols = [
         GridItem(.flexible(), spacing: SUSpace.md),
@@ -65,7 +66,14 @@ struct OutfitsTabView: View {
                             .opacity(0.92)
                             .background(.ultraThinMaterial)
                     )
+
+                if events.showSavedToast {
+                    SUToast(message: "Saved \(events.lastSavedItemName ?? "")")
+                        .padding(.top, headerHeight + SUSpace.sm)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
             }
+            .animation(SUMotion.standard, value: events.showSavedToast)
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showingBuilder) {
                 OutfitBuilderView()
